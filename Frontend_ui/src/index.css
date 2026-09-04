@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+@import 'leaflet/dist/leaflet.css';
+
+@import "tailwindcss";
+
+@theme {
+  --color-tactical-gray: #1a1a24;
+  --color-tactical-dark: #0d0d14;
+  --color-neon-cyan: #00f3ff;
+  --color-neon-red: #ff2a2a;
+}
+
+@layer base {
+  body {
+    @apply bg-tactical-dark text-white font-sans overflow-hidden m-0 p-0;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl;
+  }
+  
+  .glow-cyan {
+    box-shadow: 0 0 15px #00f3ff, inset 0 0 10px #00f3ff;
+  }
+}
+
+@keyframes fade-in-left {
+  0% { opacity: 0; transform: translateX(-20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fade-in-right {
+  0% { opacity: 0; transform: translateX(20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+/* Ensure Leaflet takes full height when active */
+.leaflet-container {
+  width: 100vw;
+  height: 100vh;
+  background-color: #0d0d14; /* Match tactical dark to avoid white flash */
+}
+
+/* Custom styling for leaflet popups/controls if needed later */
+.leaflet-bar a {
+  background-color: rgba(26, 26, 36, 0.8) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
