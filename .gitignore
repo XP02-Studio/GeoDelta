@@ -1,0 +1,20 @@
+# Virtual Environment
+geodelta_env/
+env/
+venv/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+
+# Generated Data & Artifacts
+data/processed/*
+data/patches/*
+data/tiles/*
+!data/processed/.gitkeep
+!data/patches/.gitkeep
+!data/tiles/.gitkeep
+
+# Keep Raw Input Directory Structure
+data/raw/*
+!data/raw/.gitkeep
