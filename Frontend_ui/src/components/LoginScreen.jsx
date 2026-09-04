@@ -33,10 +33,13 @@ const LoginScreen = () => {
   };
 
   return (
-    <div className={`w-full h-full flex items-center justify-center bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center transition-all duration-800 ${isFading ? 'opacity-0 scale-105 blur-md' : 'opacity-100 scale-100 blur-0'}`}>
+    <div className={`relative w-full h-full flex items-center justify-center overflow-hidden transition-all duration-800 ${isFading ? 'opacity-0 scale-105 blur-md' : 'opacity-100 scale-100 blur-0'}`}>
       
+      {/* Animated Background */}
+      <div className="absolute inset-0 z-0 bg-[url('/earth_at_night.jpg')] bg-cover bg-center origin-center animate-slow-zoom" />
+
       {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-tactical-dark/70 backdrop-blur-sm"></div>
+      <div className="absolute inset-0 z-0 bg-tactical-dark/20"></div>
 
       <div className="glass-panel w-full max-w-md p-8 relative z-10 flex flex-col items-center">
         <div className="w-16 h-16 rounded-full bg-neon-cyan/20 flex items-center justify-center mb-6 glow-cyan">
