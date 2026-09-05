@@ -18,3 +18,10 @@ data/tiles/*
 # Keep Raw Input Directory Structure
 data/raw/*
 !data/raw/.gitkeep
+
+# Frontend build & dependencies
+node_modules/
+dist/
+dist-ssr/
+.env.local
+.env.*.local
