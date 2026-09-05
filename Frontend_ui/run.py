@@ -21,19 +21,13 @@ def main():
         print("Error: Failed to run npm. Please ensure Node.js is properly installed.")
         sys.exit(1)
 
-    # Check if node_modules exists
-    node_modules_path = os.path.join(current_dir, 'node_modules')
-    if not os.path.exists(node_modules_path):
-        print("Dependencies not found (node_modules is missing).")
-        print("Running 'npm install'...")
-        try:
-            subprocess.run(['npm', 'install'], check=True, shell=is_windows)
-            print("Dependencies installed successfully.")
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to install dependencies. npm install exited with error: {e}")
-            sys.exit(1)
-    else:
-        print("Dependencies already installed.")
+    print("Ensuring dependencies are installed...")
+    try:
+        subprocess.run(['npm', 'install'], check=True, shell=is_windows)
+        print("Dependencies check complete.")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to install dependencies. npm install exited with error: {e}")
+        sys.exit(1)
     
     print("Starting the development server with 'npm run dev'...")
     try:
