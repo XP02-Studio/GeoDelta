@@ -1,7 +1,7 @@
 ### 1. Go to the folder 
 
 ```powershell
-cd geospatial_pipeline/
+cd geospatial_pipeline
 ```
 ### 2. Run 
 
