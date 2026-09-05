@@ -140,7 +140,7 @@ const LandingPage = () => {
 
         {/* Footer */}
         <footer className="py-8 text-center border-t border-white/5 text-gray-600 font-mono text-xs">
-          &copy; {new Date().getFullYear()} GeoDelta (SIH 2026). All systems operational.
+          &copy; {new Date().getFullYear()} GeoDelta. All systems operational.
         </footer>
       </div>
     </div>

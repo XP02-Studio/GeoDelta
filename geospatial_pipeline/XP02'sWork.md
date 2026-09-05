@@ -6,50 +6,15 @@ An end-to-end geospatial processing pipeline designed for **offline / air-gapped
 
 ---
 
-## ⚡ Quick Setup & Execution Guide
+### 1. Go to the folder 
 
-Follow these exact steps from the project root directory (`Satellite_ka_14`):
-
-### Step 1: Set PowerShell Policy (Run Once)
-To prevent Windows execution policy blocks (`Activate.ps1` or `npm.ps1` disabled errors):
 ```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-
+cd geospatial_pipeline/
 ```
-
-### Step 2: Create & Activate Virtual Environment
-
-```powershell
-python -m venv geodelta_env
-.\geodelta_env\Scripts\Activate.ps1
-
-```
-
-### Step 3: Install Dependencies (Windows GDAL Fix)
-
-If installing GDAL throws C++ build or wheel errors, run the binary installation commands in this order:
+### 2. Run 
 
 ```powershell
-# 1. Upgrade core pip tooling
-python -m pip install --upgrade pip setuptools wheel
-
-# 2. Force pre-compiled binary wheel installation for GDAL
-pip install gdal==3.8.4 --only-binary=:all:
-
-# 3. Install remaining pipeline requirements
-pip install -r geospatial_pipeline/requirements.txt
-
-```
-
-### Step 4: Run the Pipeline
-
-```powershell
-# Generate sample GeoTIFF test data (Optional if data/raw/ is populated)
-python make_dummy_data.py
-
-# Run the main geospatial processing pipeline
-python main.py
-
+python run_all.py
 ```
 
 ---

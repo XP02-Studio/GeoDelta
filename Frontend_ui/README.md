@@ -1,5 +1,15 @@
 # React + Vite
 
+### 1. Go to the folder 
+
+```powershell
+cd Frontend_ui
+```
+### 2. Run 
+
+```powershell
+python run.py
+```
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:

@@ -4,7 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 
 const HUD = () => {
-  const { setIsAuthenticated } = useAppContext();
+  const { setIsAuthenticated, is2DView } = useAppContext();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -13,13 +13,13 @@ const HUD = () => {
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between">
+    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between overflow-hidden">
       
       {/* Top Left - Project Info */}
-      <div className="flex flex-col space-y-2">
+      <div className={`absolute top-6 transition-all duration-500 ${is2DView ? 'left-[344px]' : 'left-6'} flex flex-col space-y-2`}>
         <div className="flex items-center space-x-2 text-neon-cyan bg-tactical-dark/50 backdrop-blur-md px-3 py-1.5 border border-neon-cyan/30 rounded w-max">
           <Activity className="w-4 h-4 animate-pulse" />
-          <span className="font-mono text-xs font-bold tracking-widest">GEODELTA (SIH 2026)</span>
+          <span className="font-mono text-xs font-bold tracking-widest">GEODELTA</span>
         </div>
         <div className="flex items-center space-x-2 text-green-400 bg-tactical-dark/50 backdrop-blur-md px-3 py-1.5 border border-green-400/30 rounded w-max">
           <Wifi className="w-4 h-4" />
@@ -28,7 +28,7 @@ const HUD = () => {
       </div>
 
       {/* Top Right - Sign Out */}
-      <div className="absolute top-6 right-6 pointer-events-auto">
+      <div className={`absolute top-6 transition-all duration-500 ${is2DView ? 'right-[344px]' : 'right-6'} pointer-events-auto`}>
         <button 
           onClick={handleLogout}
           className="flex items-center space-x-2 bg-red-900/40 hover:bg-red-900/60 border border-red-500/50 text-red-400 px-3 py-1.5 rounded transition-all backdrop-blur-md"
@@ -39,7 +39,7 @@ const HUD = () => {
       </div>
 
       {/* Bottom Right - Telemetry */}
-      <div className="absolute bottom-6 right-6 flex flex-col space-y-2 text-right items-end">
+      <div className={`absolute bottom-6 transition-all duration-500 ${is2DView ? 'right-[344px]' : 'right-6'} flex flex-col space-y-2 text-right items-end`}>
         <div className="flex items-center space-x-2 text-gray-300 bg-tactical-dark/50 backdrop-blur-md px-3 py-1.5 border border-white/10 rounded w-max">
           <span className="font-mono text-xs tracking-wider text-gray-400">LOCAL VECTOR DB:</span>
           <span className="font-mono text-xs text-green-400">CONNECTED</span>
