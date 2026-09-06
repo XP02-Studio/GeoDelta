@@ -14,29 +14,28 @@ def main():
     venv_python_win = os.path.join(venv_dir, "Scripts", "python.exe")
     venv_python_unix = os.path.join(venv_dir, "bin", "python")
     
-    if not os.path.exists(venv_dir):
+    created_venv = not os.path.exists(venv_dir)
+    if created_venv:
         print(f"Creating virtual environment in {venv_dir}...")
         venv.create(venv_dir, with_pip=True)
         print("Virtual environment created.")
-        
-        python_exe = venv_python_win if os.name == 'nt' else venv_python_unix
-        
-        req_file = os.path.join(current_dir, "requirements.txt")
-        if os.path.exists(req_file):
-            print(f"Installing requirements from {req_file}...")
-            try:
-                subprocess.run([python_exe, "-m", "pip", "install", "-r", req_file], check=True)
-                print("Requirements installed successfully.\n")
-            except subprocess.CalledProcessError as e:
-                print(f"\n[ERROR] Failed to install requirements: {e}")
-                sys.exit(1)
+
+    if os.path.exists(venv_python_win):
+        python_exe = venv_python_win
+    elif os.path.exists(venv_python_unix):
+        python_exe = venv_python_unix
     else:
-        if os.path.exists(venv_python_win):
-            python_exe = venv_python_win
-        elif os.path.exists(venv_python_unix):
-            python_exe = venv_python_unix
-        else:
-            python_exe = sys.executable
+        python_exe = sys.executable
+
+    req_file = os.path.join(current_dir, "requirements.txt")
+    if os.path.exists(req_file):
+        print(f"Installing requirements from {req_file}...")
+        try:
+            subprocess.run([python_exe, "-m", "pip", "install", "-r", req_file], check=True)
+            print("Requirements installed successfully.\n")
+        except subprocess.CalledProcessError as e:
+            print(f"\n[ERROR] Failed to install requirements: {e}")
+            sys.exit(1)
 
     print(f"Using Python environment: {python_exe}\n")
 

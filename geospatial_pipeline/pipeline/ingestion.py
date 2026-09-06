@@ -1,10 +1,8 @@
 import os
 import numpy as np
-from osgeo import gdal
+import rasterio
+from rasterio.warp import calculate_default_transform, reproject, Resampling
 import config
-
-# Enable GDAL exception throwing explicitly to eliminate GDAL 4.0 warnings
-gdal.UseExceptions()
 
 class DataIngestion:
     @staticmethod
@@ -16,29 +14,38 @@ class DataIngestion:
         # Ensure target processing directory exists
         os.makedirs(config.PROCESSED_DATA_DIR, exist_ok=True)
 
-        t1_ds = gdal.Open(t1_path)
-        if not t1_ds:
-            raise FileNotFoundError(f"Could not open T1 image at {t1_path}")
+        with rasterio.open(t1_path) as t1_ds, rasterio.open(t2_path) as t2_ds:
+            t1_arr = t1_ds.read().astype(np.float32)
+            t1_crs = t1_ds.crs
+            t1_transform = t1_ds.transform
+            t1_gt = t1_transform.to_gdal()
+            t1_proj = t1_crs.to_wkt() if t1_crs else ""
 
-        t1_proj = t1_ds.GetProjection()
-        t1_gt = t1_ds.GetGeoTransform()
-        
-        # Warp T2 to match T1 CRS & Resolution
-        warped_t2_path = os.path.join(config.PROCESSED_DATA_DIR, "t2_warped.tif")
-        gdal.Warp(
-            warped_t2_path, 
-            t2_path, 
-            dstSRS=t1_proj, 
-            targetAlignedPixels=True,
-            xRes=t1_gt[1], 
-            yRes=abs(t1_gt[5])
-        )
+            # Warp T2 to match T1 CRS, resolution, and dimensions.
+            warped_t2_path = os.path.join(config.PROCESSED_DATA_DIR, "t2_warped.tif")
+            t2_arr = np.zeros_like(t1_arr, dtype=np.float32)
+            reproject(
+                source=t2_ds.read().astype(np.float32),
+                destination=t2_arr,
+                src_transform=t2_ds.transform,
+                src_crs=t2_ds.crs,
+                dst_transform=t1_transform,
+                dst_crs=t1_crs,
+                resampling=Resampling.bilinear,
+            )
 
-        t2_ds = gdal.Open(warped_t2_path)
-
-        # Read as numpy arrays
-        t1_arr = t1_ds.ReadAsArray().astype(np.float32)
-        t2_arr = t2_ds.ReadAsArray().astype(np.float32)
+            with rasterio.open(
+                warped_t2_path,
+                "w",
+                driver="GTiff",
+                width=t1_ds.width,
+                height=t1_ds.height,
+                count=t2_arr.shape[0],
+                dtype=t2_arr.dtype,
+                crs=t1_crs,
+                transform=t1_transform,
+            ) as warped_t2:
+                warped_t2.write(t2_arr)
 
         # Radiometric Percentile Normalization
         def normalize_array(arr):

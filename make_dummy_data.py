@@ -1,6 +1,7 @@
 import os
 import numpy as np
-from osgeo import gdal, osr
+import rasterio
+from rasterio.transform import from_origin
 
 os.makedirs("data/raw", exist_ok=True)
 
@@ -11,22 +12,19 @@ def create_dummy_geotiff(filename, offset=0):
     # Generate random raster data
     data = np.random.randint(50, 200, (bands, height, width), dtype=np.uint8) + offset
 
-    driver = gdal.GetDriverByName("GTiff")
-    ds = driver.Create(filename, width, height, bands, gdal.GDT_Byte)
+    with rasterio.open(
+        filename,
+        "w",
+        driver="GTiff",
+        width=width,
+        height=height,
+        count=bands,
+        dtype=data.dtype,
+        crs="EPSG:4326",
+        transform=from_origin(77.1025, 28.7041, 0.0001, 0.0001),
+    ) as dataset:
+        dataset.write(data)
 
-    # Set spatial reference (WGS84 / EPSG:4326)
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326)
-    ds.SetProjection(srs.ExportToWkt())
-
-    # Set geotransform: [top_left_x, w_e_pixel_resolution, rotation, top_left_y, rotation, n_s_pixel_resolution]
-    ds.SetGeoTransform([77.1025, 0.0001, 0, 28.7041, 0, -0.0001])
-
-    for i in range(bands):
-        ds.GetRasterBand(i + 1).WriteArray(data[i])
-
-    ds.FlushCache()
-    ds = None
     print(f"Created dummy GeoTIFF: {filename}")
 
 create_dummy_geotiff("data/raw/t1_baseline.tif", offset=0)
