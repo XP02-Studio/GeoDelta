@@ -16,7 +16,7 @@ geodelta/
 ├── .env.example                 # Global configuration for offline ports & database keys
 ├── README.md                    # Project documentation & SIH setup instructions
 │
-├── backend/                     # BACKEND & PRESENTATION LEAD (FastAPI Server) [1, 2]
+├── backend/                     # BACKEND (FastAPI Server) [1, 2]
 │   ├── Dockerfile               # Configured for offline Python wheel installation [3, 4]
 │   ├── requirements.txt         # FastAPI, uvicorn, qdrant-client, psycopg2, etc. [2]
 │   ├── main.py                  # API entry point & Uvicorn server configuration
