@@ -101,30 +101,16 @@ geodelta/
     ├── qdrant_storage/
     ├── postgis_data/
     └── local_map_tiles/
-<<<<<<< HEAD
+
     
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                          TEAM MEMBERS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Member 1 (Backend)                              :- Dhurbo
+Member 1 (Backend)                              :- Dhrubo
 Member 2 (Frontend & UI/UX Developer)           :- Rehan
 Member 3 (Geospatial Data Engineer)             :- Ayush
 Member 4 (Vector Database & Search Specialist)  :- Adarsh
 Member 5 (Deep Learning Core / ML Engineer)     :- Binit
 Member 6 (DevOps & Deployment Lead)             :- Sneha
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-=======
 
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                    TEAM MEMBERS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Member 1 (Backend)                         :- Dhurbo
-Member 2 (Frontend & UI/UX Developer)     :- Rehan
-Member 3 (Geospatial Data Engineer)        :- Ayush
-Member 4 (Vector Database & Search Specialist) :- Adarsh
-Member 5 (Deep Learning Core / ML Engineer)   :- Binit
-Member 6 (DevOps & Deployment Lead)        :- Sneha
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
->>>>>>> cbee7d2513c78667390e9eb6a2678e22f37e2422
