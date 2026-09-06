@@ -13,16 +13,14 @@ python run_all.py
 
 📂 GeoDelta Project Directory Structure
 geodelta/
-
 ├── docker-compose.yml              # DevOps: Orchestrates all local service containers
 ├── .env.example                    # Global configuration for offline ports & database keys
 ├── README.md                       # Project documentation & SIH setup instructions
-
 │
-├── backend/                        # MEMBER 1 — BACKEND LEAD
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── main.py
+├── backend/                     # BACKEND & PRESENTATION LEAD (FastAPI Server) [1, 2]
+│   ├── Dockerfile               # Configured for offline Python wheel installation [3, 4]
+│   ├── requirements.txt         # FastAPI, uvicorn, qdrant-client, psycopg2, etc. [2]
+│   ├── main.py                  # API entry point & Uvicorn server configuration
 │   └── app/
 │       ├── __init__.py
 │       ├── api/
@@ -37,7 +35,6 @@ geodelta/
 │       │   └── orchestrator.py
 │       └── schemas/
 │           └── spatial.py
-
 │
 ├── frontend/                       # MEMBER 2 — FRONTEND & UI/UX DEVELOPER
 │   ├── Dockerfile
@@ -63,7 +60,6 @@ geodelta/
 │               ├── SpaceCanvas.jsx
 │               ├── RotatingEarth.jsx
 │               └── Satellites.jsx
-
 │
 ├── preprocessing/                  # MEMBER 3 — GEOSPATIAL DATA ENGINEER
 │   ├── Dockerfile
@@ -73,7 +69,6 @@ geodelta/
 │       ├── co_registration.py
 │       ├── normalizer.py
 │       └── tile_converter.py
-
 │
 ├── vector-search/                  # MEMBER 4 — VECTOR DATABASE & SEARCH SPECIALIST
 │   ├── Dockerfile
@@ -83,7 +78,6 @@ geodelta/
 │       ├── collection_setup.py
 │       ├── embedding_indexer.py
 │       └── semantic_search.py
-
 │
 ├── ml-engine/                      # MEMBER 5 — DEEP LEARNING CORE (ML ENGINEER)
 │   ├── Dockerfile
@@ -95,14 +89,12 @@ geodelta/
 │       ├── inference_engine.py
 │       ├── change_former.py
 │       └── rs_clip_search.py
-
 │
 └── local_storage/                  # MEMBER 6 — DEVOPS & DEPLOYMENT LEAD
     ├── qdrant_storage/
     ├── postgis_data/
     └── local_map_tiles/
-
-
+    
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                          TEAM MEMBERS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
