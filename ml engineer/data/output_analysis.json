@@ -1,0 +1,98 @@
+{
+  "status": "SUCCESS",
+  "timestamp": 1788806126.9674978,
+  "query": "new runway",
+  "summary": {
+    "total_instances_detected": 1,
+    "red_threats": 1,
+    "yellow_warnings": 0,
+    "green_filtered_false_positives": 0,
+    "tile_dimensions": {
+      "height": 256,
+      "width": 256
+    }
+  },
+  "instances": [
+    {
+      "instance_id": "inst_001",
+      "threat_level": "RED",
+      "color_hex": "#EF4444",
+      "category": "Heavy Infrastructure Addition",
+      "sub_type": "Permanent Facility / Warehouse",
+      "is_alert": true,
+      "match_confidence": 0.5,
+      "geometry": {
+        "bbox_pixels": [
+          0,
+          0,
+          256,
+          256
+        ],
+        "bbox_normalized": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "polygon_pixels": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            255
+          ],
+          [
+            255,
+            255
+          ],
+          [
+            255,
+            0
+          ]
+        ],
+        "polygon_normalized": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.9961
+          ],
+          [
+            0.9961,
+            0.9961
+          ],
+          [
+            0.9961,
+            0.0
+          ]
+        ],
+        "centroid_pixels": [
+          127.5,
+          127.5
+        ],
+        "area_pixels": 65025.0
+      },
+      "metrics": {
+        "aspect_ratio": 1.0,
+        "solidity": 1.0,
+        "change_score": 0.4883
+      }
+    }
+  ],
+  "latency": {
+    "total_pipeline_ms": 164.55,
+    "budget_ms": 420.0,
+    "is_within_budget": true,
+    "breakdown_ms": {
+      "1_image_preprocessing": 8.05,
+      "2_changeformer_forward_pass": 78.99,
+      "3_instance_polygon_clustering": 1.06,
+      "4_threat_classification": 4.5,
+      "5_rs_clip_semantic_matching": 71.95
+    }
+  }
+}

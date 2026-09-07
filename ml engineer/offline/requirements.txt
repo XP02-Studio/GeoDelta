@@ -1,0 +1,24 @@
+# Deep Learning Core (Air-Gapped ML Engineer) Requirements
+# Core PyTorch and Computer Vision
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+opencv-python>=4.8.0
+pillow>=9.5.0
+scipy>=1.10.0
+scikit-learn>=1.2.0
+
+# ONNX and TensorRT Optimization Stack
+onnx>=1.14.0
+onnxruntime>=1.16.0
+
+# Serving and API Backend
+flask>=3.0.0
+flask-cors>=4.0.0
+pydantic>=2.0.0
+pyyaml>=6.0.0
+
+# Benchmarking & Utilities
+pytest>=7.3.0
+matplotlib>=3.7.0
+tqdm>=4.65.0

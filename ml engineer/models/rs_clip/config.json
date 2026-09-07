@@ -1,0 +1,11 @@
+{
+  "model_type": "rs-clip",
+  "embed_dim": 512,
+  "max_text_length": 32,
+  "vocab_size": 50,
+  "visual_input_size": [
+    3,
+    64,
+    64
+  ]
+}

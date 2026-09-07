@@ -1,0 +1,78 @@
+# Deep Learning Core Configuration
+# Environment: Air-Gapped / Offline
+
+system:
+  strict_offline: true
+  device: "auto"  # "cuda", "cpu", or "auto"
+  target_latency_budget_ms: 420.0
+  max_vram_gb: 4.0
+
+models:
+  changeformer:
+    name: "ChangeFormerV6"
+    weights_path: "models/changeformer/changeformer_levir.pt"
+    onnx_path: "models/changeformer/changeformer.onnx"
+    trt_engine_path: "models/changeformer/changeformer_fp16.engine"
+    input_resolution: [256, 256]
+    in_channels: 3
+    embed_dims: [64, 128, 256, 512]
+    depths: [2, 2, 2, 2]
+    decoder_dim: 256
+    num_heads: [1, 2, 4, 8]
+    mlp_ratios: [4, 4, 4, 4]
+    drop_rate: 0.1
+
+  rs_clip:
+    name: "RS-CLIP-ViT-B-32"
+    weights_path: "models/rs_clip/rs_clip.pt"
+    onnx_visual_path: "models/rs_clip/rs_clip_visual.onnx"
+    onnx_text_path: "models/rs_clip/rs_clip_text.onnx"
+    vocab_path: "models/rs_clip/bpe_vocab.json"
+    embed_dim: 512
+    image_resolution: [224, 224]
+    context_length: 77
+    vocab_size: 49408
+    transformer_width: 512
+    transformer_heads: 8
+    transformer_layers: 12
+    visual_width: 768
+    visual_layers: 12
+    visual_patch_size: 16
+
+traffic_light:
+  # Threat categorization definitions
+  red:
+    hex: "#EF4444"
+    category: "Heavy Infrastructure"
+    description: "Bunkers, airstrips, runways, reinforced structures, and heavy installations"
+    keywords: ["bunker", "runway", "airstrip", "large building", "hangar", "missile pad", "barracks", "fortification", "radar"]
+  yellow:
+    hex: "#EAB308"
+    category: "Logistical Surface"
+    description: "Dirt roads, forest clearings, bridge extensions, trenches, vehicle staging"
+    keywords: ["dirt road", "forest clearing", "road", "bridge extension", "trench", "clearing", "path", "staging area"]
+  green:
+    hex: "#22C55E"
+    category: "Filtered False Positive"
+    description: "Transient changes filtered out as non-threats (shadow displacement, cloud cover, seasonal shifts)"
+    keywords: ["shadow", "cloud", "cloud cover", "seasonal vegetation", "illumination shift", "natural change"]
+
+  thresholds:
+    min_instance_area_pixels: 12
+    change_probability_threshold: 0.50
+    shadow_spectral_ratio: 0.35
+    cloud_brightness_ratio: 0.85
+    default_threat_level: "yellow"
+
+optimization:
+  fp16_enabled: true
+  io_binding_enabled: true
+  onnx_opset_version: 17
+  trt_max_workspace_bytes: 2147483648  # 2 GB
+  benchmark_warmup_iterations: 10
+  benchmark_test_iterations: 50
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
