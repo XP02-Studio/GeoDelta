@@ -1,0 +1,27 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    pull_policy: never
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  postgis:
+    image: postgis/postgis:16-3.4
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: geodelta
+      POSTGRES_USER: geodelta
+      POSTGRES_PASSWORD: geodelta
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_storage:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+
+volumes:
+  qdrant_storage:
+  postgis_storage:
