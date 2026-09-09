@@ -1,0 +1,2 @@
+# Place pre-downloaded .whl files here for 100% offline pip install.
+# Generated via: pip wheel -r ../requirements.txt -w . --prefer-binary

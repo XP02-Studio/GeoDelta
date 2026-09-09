@@ -1,0 +1,12 @@
+{
+  "name": "airgap-fortress-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Air-Gapped React & Three.js Mission Control Dashboard",
+  "scripts": {
+    "start": "serve -s build",
+    "build": "mkdir -p build && cp -r public/* build/"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

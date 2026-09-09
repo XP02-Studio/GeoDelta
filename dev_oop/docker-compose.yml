@@ -1,0 +1,201 @@
+version: '3.8'
+
+# ==============================================================================
+# AIR-GAPPED ZERO-EXTERNAL COMMUNICATION DOCKER COMPOSE ORCHESTRATION
+# ==============================================================================
+# Security Model:
+# 1. 'isolated_core' network is marked 'internal: true' (blocks all WAN/Internet egress).
+# 2. PostGIS and Qdrant have ZERO published host ports; accessible only via Docker internal DNS.
+# 3. ML Service runs on isolated_core with direct physical NVIDIA GPU passthrough.
+# 4. Host asset directories (tiles, textures, satellite imagery, TensorRT models) are strictly read-only (:ro).
+# 5. Only the Edge Frontend (port 80) and FastAPI Bridge (port 8000) are exposed to host.
+# ==============================================================================
+
+networks:
+  # Fully isolated inter-service network (No gateway, mathematically zero WAN access)
+  isolated_core:
+    name: fortress_isolated_core
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+  # Edge network for host interface (Frontend & API Gateway entrypoints)
+  edge_gateway:
+    name: fortress_edge_gateway
+    driver: bridge
+
+volumes:
+  postgis_data:
+    driver: local
+  qdrant_storage:
+    driver: local
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. REACT / THREE.JS FRONTEND (Multi-stage build served via nginx:alpine)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fortress-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_HOST_PORT:-80}:80"
+    networks:
+      - edge_gateway
+      - isolated_core
+    depends_on:
+      - backend
+      - asset-server
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ----------------------------------------------------------------------------
+  # 2. LOCAL ASSET SERVER (High-throughput 3D textures & Leaflet XYZ tiles)
+  # ----------------------------------------------------------------------------
+  asset-server:
+    build:
+      context: ./asset-server
+      dockerfile: Dockerfile
+    container_name: fortress-asset-server
+    restart: unless-stopped
+    ports:
+      - "${ASSET_SERVER_HOST_PORT:-8080}:80"
+    volumes:
+      # Strictly Read-Only volume mounts to prevent runtime data corruption
+      - ./data/tiles:/usr/share/nginx/html/tiles:ro
+      - ./data/textures:/usr/share/nginx/html/textures:ro
+    networks:
+      - edge_gateway
+      - isolated_core
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ----------------------------------------------------------------------------
+  # 3. FASTAPI BACKEND (python:3.10-slim with pre-cached offline wheels)
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fortress-backend
+    restart: unless-stopped
+    ports:
+      - "${FASTAPI_HOST_PORT:-8000}:8000"
+    environment:
+      - POSTGIS_HOST=${POSTGIS_HOST:-postgis}
+      - POSTGIS_PORT=${POSTGIS_PORT:-5432}
+      - POSTGIS_DB=${POSTGIS_DB:-geodata}
+      - POSTGIS_USER=${POSTGIS_USER:-fortress_user}
+      - POSTGIS_PASSWORD=${POSTGIS_PASSWORD:-AirGapSecurePassword2026!}
+      - QDRANT_HOST=${QDRANT_HOST:-qdrant}
+      - QDRANT_PORT=${QDRANT_PORT:-6333}
+      - ML_SERVICE_HOST=${ML_SERVICE_HOST:-ml-service}
+      - ML_SERVICE_PORT=${ML_SERVICE_PORT:-5000}
+      - ASSET_SERVER_HOST=${ASSET_SERVER_HOST:-asset-server}
+      - ASSET_SERVER_PORT=80
+    volumes:
+      # Satellite imagery mounted strictly read-only
+      - ./data/satellite:/data/satellite:ro
+    networks:
+      - edge_gateway
+      - isolated_core
+    depends_on:
+      postgis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      ml-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ----------------------------------------------------------------------------
+  # 4. ML SERVICE (NVIDIA CUDA 11.8 + cuDNN 8 + TensorRT hardware passthrough)
+  # ----------------------------------------------------------------------------
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: fortress-ml-service
+    restart: unless-stopped
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - TENSORRT_ENGINE_PATH=${TENSORRT_ENGINE_PATH:-/models/satellite_infer_fp16.engine}
+      - TARGET_LATENCY_MS=${TARGET_LATENCY_MS:-420}
+    volumes:
+      # Pre-compiled TensorRT engines mounted strictly read-only
+      - ./data/models:/models:ro
+      - ./data/satellite:/data/satellite:ro
+    networks:
+      - isolated_core
+    # NO published host ports: strictly internal DNS resolution via ml-service:5000
+    expose:
+      - "5000"
+    # Physical NVIDIA GPU passthrough for Asus TUF A15
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ----------------------------------------------------------------------------
+  # 5. POSTGIS SPATIAL DATABASE (Internal DNS only, zero host port exposure)
+  # ----------------------------------------------------------------------------
+  postgis:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: fortress-postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGIS_DB:-geodata}
+      POSTGRES_USER: ${POSTGIS_USER:-fortress_user}
+      POSTGRES_PASSWORD: ${POSTGIS_PASSWORD:-AirGapSecurePassword2026!}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    networks:
+      - isolated_core
+    # NO published host ports: strictly internal DNS resolution via postgis:5432
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGIS_USER:-fortress_user} -d ${POSTGIS_DB:-geodata}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 6. QDRANT VECTOR SEARCH ENGINE (Internal DNS only, zero host port exposure)
+  # ----------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.7.4
+    container_name: fortress-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - isolated_core
+    # NO published host ports: strictly internal DNS resolution via qdrant:6333
+    expose:
+      - "6333"
+      - "6334"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://127.0.0.1:6333/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
