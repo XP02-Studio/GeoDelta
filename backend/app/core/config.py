@@ -7,10 +7,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Tactical Imagery Analysis"
     API_V1_STR: str = "/api/v1"
 
-    # Database & Vector Store URLs
-    QDRANT_URL: str = "http://localhost:6333"
+    # Fetch Database & Vector Store URLs directly from Environment variables (.env)
+    QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333")
+    QDRANT_API_KEY: str | None = os.getenv("QDRANT_API_KEY", None)
     QDRANT_COLLECTION: str = "geodelta_semantic"
-    POSTGRES_URL: str = "postgresql://geodelta:geodelta@localhost:5432/geodelta"
+    POSTGRES_URL: str = os.getenv("DATABASE_URL", "postgresql://geodelta:geodelta@localhost:5432/geodelta")
 
     # ML Inference & Threshold Settings
     SEARCH_SCORE_THRESHOLD: float = 0.85

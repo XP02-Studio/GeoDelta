@@ -14,7 +14,7 @@ from app.services.semantic_encoder import RSCLIPTextEncoder, VECTOR_SIZE
 
 class VectorSearchEngine:
     def __init__(self, encoder: RSCLIPTextEncoder | None = None) -> None:
-        self.qdrant = AsyncQdrantClient(url=settings.QDRANT_URL)
+        self.qdrant = AsyncQdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
         self.postgres_url = settings.POSTGRES_URL
         self.collection_name = settings.QDRANT_COLLECTION
         self.score_threshold = settings.SEARCH_SCORE_THRESHOLD

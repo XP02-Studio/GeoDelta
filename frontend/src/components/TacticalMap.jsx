@@ -31,52 +31,67 @@ const TacticalMap = () => {
     }
   }, [is2DView]);
 
-  const handleScanSector = () => {
+  const handleScanSector = async () => {
     if (scanStep > 0) return;
     setScanStep(1);
     
     setTimeout(() => setScanStep(2), 600);
     setTimeout(() => setScanStep(3), 1200);
-    setTimeout(() => {
-      // Mock GeoJSON response
+    
+    try {
       const offset = 0.005;
-      const targetType = "BUNKER"; // Can be Airstrip/Bunker (Red) or Dirt Road (Yellow)
+      const minX = targetCoordinates.lng - offset;
+      const minY = targetCoordinates.lat - offset;
+      const maxX = targetCoordinates.lng + offset;
+      const maxY = targetCoordinates.lat + offset;
+
+      const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+      const response = await fetch(`${API_URL}/api/v1/analyze/sector`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sector_id: "SEC-CURRENT",
+          bbox: [minX, minY, maxX, maxY],
+          target_query: "Threat"
+        })
+      });
+
+      if (!response.ok) throw new Error("Analysis failed");
+
+      const geojsonData = await response.json();
       
-      const mockGeoJSON = {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: { changeType: targetType, confidence: 0.96 },
-            geometry: {
-              type: "Polygon",
-              coordinates: [[
-                [targetCoordinates.lng - offset, targetCoordinates.lat - offset],
-                [targetCoordinates.lng + offset, targetCoordinates.lat - offset],
-                [targetCoordinates.lng + offset, targetCoordinates.lat + offset],
-                [targetCoordinates.lng - offset, targetCoordinates.lat + offset],
-                [targetCoordinates.lng - offset, targetCoordinates.lat - offset]
-              ]]
-            }
-          }
-        ]
-      };
-      
-      setGeoData(mockGeoJSON);
+      setGeoData(geojsonData);
       setScanStep(4);
 
-      // Calculate area using Turf.js
-      const areaSqMeters = turf.area(mockGeoJSON);
-      setAreaMetric(Math.round(areaSqMeters)); // sq meters
-      
-    }, 2000);
+      if (geojsonData.features[0] && geojsonData.features[0].properties.area_sq_meters) {
+        setAreaMetric(geojsonData.features[0].properties.area_sq_meters);
+      } else {
+        const areaSqMeters = turf.area(geojsonData);
+        setAreaMetric(Math.round(areaSqMeters));
+      }
+    } catch (error) {
+      console.error("Scan Error:", error);
+      setScanStep(0);
+    }
   };
 
   const geoJsonStyle = (feature) => {
-    // Traffic-Light Logic
-    const type = feature.properties.changeType;
+    if (feature.properties && feature.properties.stroke_color) {
+      return {
+        color: feature.properties.stroke_color,
+        weight: 3,
+        opacity: 0.8,
+        fillColor: feature.properties.stroke_color,
+        fillOpacity: 0.2,
+        dashArray: "5, 10"
+      };
+    }
+
+    const type = feature.properties?.changeType || "BUNKER";
     const isCritical = type === "BUNKER" || type === "AIRSTRIP";
-    const color = isCritical ? "#EF4444" : "#EAB308"; // Red for critical, Yellow for roads etc.
+    const color = isCritical ? "#EF4444" : "#EAB308";
 
     return {
       color: color,
@@ -84,7 +99,7 @@ const TacticalMap = () => {
       opacity: 0.8,
       fillColor: color,
       fillOpacity: 0.2,
-      dashArray: "5, 10" // tactical dotted line
+      dashArray: "5, 10"
     };
   };
 
@@ -257,9 +272,9 @@ const TacticalMap = () => {
             <div className="bg-black/40 p-4 rounded border border-white/5">
               <p className="text-xs text-gray-500 font-mono mb-2">RS-CLIP CONFIDENCE</p>
               <div className="w-full bg-gray-800 rounded-full h-2">
-                <div className="bg-green-400 h-2 rounded-full" style={{ width: scanStep < 4 ? '0%' : '96%', transition: 'width 1s ease-in-out' }}></div>
+                <div className="bg-green-400 h-2 rounded-full" style={{ width: scanStep < 4 ? '0%' : (geoData?.features?.[0]?.properties?.match_confidence ? geoData.features[0].properties.match_confidence.split('%')[0] + '%' : '96%'), transition: 'width 1s ease-in-out' }}></div>
               </div>
-              <p className="text-right text-xs text-green-400 font-mono mt-1">{scanStep < 4 ? '--' : '96%'}</p>
+              <p className="text-right text-xs text-green-400 font-mono mt-1">{scanStep < 4 ? '--' : (geoData?.features?.[0]?.properties?.match_confidence || '96%')}</p>
             </div>
           </div>
         </div>

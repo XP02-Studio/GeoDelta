@@ -62,9 +62,7 @@ const Earth = () => {
   ]);
 
   useFrame(() => {
-    if (earthRef.current) {
-      earthRef.current.rotation.y += 0.0005; // slow rotation
-    }
+    // Keep earth static so lat/lon coordinates align perfectly with texture
   });
 
   return (
@@ -109,17 +107,17 @@ const Earth = () => {
 // Converts Lat/Lon to 3D Cartesian coordinates
 const latLongToVector3 = (lat, lon, radius) => {
   const phi = (90 - lat) * (Math.PI / 180);
-  const theta = (lon + 180) * (Math.PI / 180);
+  const theta = (lon) * (Math.PI / 180);
 
-  const x = -(radius * Math.sin(phi) * Math.cos(theta));
-  const z = (radius * Math.sin(phi) * Math.sin(theta));
+  const x = -(radius * Math.sin(phi) * Math.sin(theta));
+  const z = -(radius * Math.sin(phi) * Math.cos(theta));
   const y = (radius * Math.cos(phi));
 
   return new THREE.Vector3(x, y, z);
 };
 
 const CameraController = () => {
-  const { targetCoordinates, isAnimatingToTarget, setIsAnimatingToTarget, setIs2DView } = useAppContext();
+  const { targetCoordinates, isAnimatingToTarget, setIsAnimatingToTarget, setIs2DView, is2DView } = useAppContext();
   const { camera } = useThree();
   const targetPosRef = useRef(new THREE.Vector3(0, 0, 3.0));
 
@@ -129,6 +127,25 @@ const CameraController = () => {
     camera.position.copy(initialPos);
     camera.lookAt(0, 0, 0);
   }, [camera]);
+
+  // Return to orbit effect
+  useEffect(() => {
+    if (!is2DView && !isAnimatingToTarget) {
+      const dist = camera.position.length();
+      // If we are currently zoomed in close to the surface, animate back out
+      if (dist < 2.0) {
+        const orbitPos = camera.position.clone().normalize().multiplyScalar(3.0);
+        gsap.to(camera.position, {
+          x: orbitPos.x,
+          y: orbitPos.y,
+          z: orbitPos.z,
+          duration: 1.5,
+          ease: "power2.out",
+          onUpdate: () => camera.lookAt(0, 0, 0)
+        });
+      }
+    }
+  }, [is2DView, isAnimatingToTarget, camera]);
 
   useEffect(() => {
     if (isAnimatingToTarget) {

@@ -11,27 +11,34 @@ export const AppProvider = ({ children }) => {
   const [isAnimatingToTarget, setIsAnimatingToTarget] = useState(false);
 
   // Function to handle the complex transition logic
-  const initiateSearch = (query) => {
+  const initiateSearch = async (query) => {
     setSearchQuery(query);
     
-    // Mock Gazetteer: Resolve coordinates based on query
-    let newCoords = { lat: 20.5937, lng: 78.9629 }; // fallback
-    if (query.toLowerCase().includes('nepal')) {
-      newCoords = { lat: 28.3949, lng: 84.1240 };
-    } else if (query.toLowerCase().includes('delhi')) {
-      newCoords = { lat: 28.7041, lng: 77.1025 };
-    } else if (query.toLowerCase().includes('mumbai')) {
-      newCoords = { lat: 19.0760, lng: 72.8777 };
-    }
-    
-    // 1. Set target for 3D globe to tween to
-    setTargetCoordinates(newCoords);
-    setIsAnimatingToTarget(true);
+    try {
+      // Securely pull API URL from Vite Environment Variables with local fallback
+      const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+      const response = await fetch(`${API_URL}/api/v1/search/target`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ query: query, sector_context: "" })
+      });
 
-    // 2. The Globe component will handle the GSAP/pointOfView tweening.
-    // 3. Once tween completes, we trigger the zoom and then switch to 2D.
-    // We will simulate this flow via timeouts in this mock for now, 
-    // but ideally the Globe component calls a `onTweenComplete` callback.
+      if (!response.ok) throw new Error("Backend search failed");
+      
+      const data = await response.json();
+      
+      // Update coordinates with the data returned from backend (e.g. Sri Lanka)
+      setTargetCoordinates({ lat: data.coordinates.lat, lng: data.coordinates.lng });
+      setIsAnimatingToTarget(true);
+
+    } catch (error) {
+      console.error("API Search Error:", error);
+      // Fallback
+      setTargetCoordinates({ lat: 20.5937, lng: 78.9629 });
+      setIsAnimatingToTarget(true);
+    }
   };
 
   return (

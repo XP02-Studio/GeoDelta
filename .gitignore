@@ -24,4 +24,7 @@ node_modules/
 dist/
 dist-ssr/
 .env.local
-.env.*.local
+.env.*.local
+
+.env
+

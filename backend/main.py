@@ -11,6 +11,23 @@ app = FastAPI(
     description="Offline-ready geospatial change detection and semantic search API."
 )
 
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "http://localhost:5173", # Vite local dev
+    "http://localhost:5174", # Vite local dev (alternative port)
+    "https://geodelta-sih.vercel.app", # Vercel production
+    os.getenv("VITE_API_URL", "") # Fallback from env
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Register Endpoint Routers
 app.include_router(search.router)
 app.include_router(analyze.router)
@@ -39,4 +56,4 @@ async def get_raster_chip_pair(bbox: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)

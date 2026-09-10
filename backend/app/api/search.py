@@ -20,6 +20,14 @@ LOCAL_GAZETTEER = {
         "zoom": 14,
         "pitch": 30,
         "bearing": 15
+    },
+    "sri lanka border": {
+        "target_class": "Naval Base",
+        "lat": 9.3820,
+        "lng": 79.8988,
+        "zoom": 15,
+        "pitch": 40,
+        "bearing": -20
     }
 }
 
