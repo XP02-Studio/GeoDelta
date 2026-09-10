@@ -1,16 +1,14 @@
 import sys
-from pathlib import Path
+import os
 
-# Add geospatial_pipeline folder to Python path
-pipeline_dir = Path(__file__).resolve().parent / "geospatial_pipeline"
-if str(pipeline_dir) not in sys.path:
-    sys.path.insert(0, str(pipeline_dir))
+# Add the backend directory to the Python path so that internal imports 
+# like `from app.api import ...` work correctly when uvicorn is run from the root.
+from backend.app.api.search import router as search_router
+app.include_router(search_router, prefix="/api/v1")
 
-from main import run_pipeline
+backend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend")
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
-if __name__ == "__main__":
-    print("==================================================")
-    print("   SIH262270: Air-Gapped Satellite Pipeline Run   ")
-    print("==================================================\n")
-    
-    run_pipeline("t1_baseline.tif", "t2_current.tif")
+# Import the FastAPI app instance so `uvicorn main:app` works on Render
+from backend.main import app

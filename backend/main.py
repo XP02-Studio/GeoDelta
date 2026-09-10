@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.api import search, analyze
 
+
 app = FastAPI(
     title="Tactical Imagery Analysis Backend",
     version="1.0.0",

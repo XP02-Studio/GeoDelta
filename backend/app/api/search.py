@@ -1,76 +1,88 @@
-from fastapi import APIRouter, HTTPException, status
-from app.schemas.spatial import SearchTargetRequest, SearchTargetResponse, Coordinates, CameraConfig
+import os
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from qdrant_client import QdrantClient
+from qdrant_client.http import models as qdrant_models
+from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
 
-router = APIRouter(prefix="/api/v1/search", tags=["Search"])
+# Load environment variables (.env)
+load_dotenv()
 
-# Dummy local gazetteer dictionary mapping landmark keywords for air-gapped lookup
-LOCAL_GAZETTEER = {
-    "nepal border": {
-        "target_class": "Airstrip",
-        "lat": 27.7172,
-        "lng": 85.3240,
-        "zoom": 15,
-        "pitch": 45,
-        "bearing": 0
-    },
-    "lac sector 4": {
-        "target_class": "Helipad",
-        "lat": 34.1526,
-        "lng": 77.5771,
-        "zoom": 14,
-        "pitch": 30,
-        "bearing": 15
-    },
-    "sri lanka border": {
-        "target_class": "Naval Base",
-        "lat": 9.3820,
-        "lng": 79.8988,
-        "zoom": 15,
-        "pitch": 40,
-        "bearing": -20
-    }
-}
+# Initialize FastAPI Router
+router = APIRouter()
 
-def mock_rs_clip_text_encoder(text: str) -> list:
+# ---------------------------------------------------------
+# 1. Configuration & Client Initialization
+# ---------------------------------------------------------
+QDRANT_URL = os.getenv("QDRANT_URL")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "geospatial_metadata") # Change if your collection name differs
+
+try:
+    # Connect to Qdrant Cloud
+    qdrant = QdrantClient(
+        url=QDRANT_URL, 
+        api_key=QDRANT_API_KEY
+    )
+except Exception as e:
+    print(f"[-] Failed to connect to Qdrant: {e}")
+    qdrant = None
+
+try:
+    # Load a fast embedding model for real-time text-to-vector conversion
+    # "all-MiniLM-L6-v2" is standard for fast, high-quality semantic search
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+except Exception as e:
+    print(f"[-] Failed to load SentenceTransformer: {e}")
+    embedder = None
+
+# ---------------------------------------------------------
+# 2. Pydantic Models for Data Validation
+# ---------------------------------------------------------
+class SearchRequest(BaseModel):
+    query_text: str
+    top_k: int = 5
+    # You can add optional fields here (e.g., location, date_range) if you want to use Qdrant filters
+
+# ---------------------------------------------------------
+# 3. Real-Time Semantic Search Endpoint
+# ---------------------------------------------------------
+@router.post("/search")
+async def perform_semantic_search(request: SearchRequest):
     """
-    Simulates generating a 512-dimensional query vector using an offline RS-CLIP model.
+    Takes a natural language query, converts it to a vector, 
+    and returns the top_k most similar satellite image records from Qdrant.
     """
-    # Return a dummy 512-D vector
-    return [0.042] * 512
+    if not qdrant or not embedder:
+        raise HTTPException(status_code=500, detail="Vector search engine is offline.")
 
-@router.post("/target", response_model=SearchTargetResponse, status_code=status.HTTP_200_OK)
-async def search_target(payload: SearchTargetRequest):
-    query_lower = payload.query.lower()
-    
-    # 1. Offline Entity & Coordinate Extraction via Gazetteer Lookup
-    matched_entry = None
-    for location_key, data in LOCAL_GAZETTEER.items():
-        if location_key in query_lower or (payload.sector_context and location_key in payload.sector_context.lower()):
-            matched_entry = data
-            break
-            
-    # Default location fallback if no exact gazetteer match is found
-    if not matched_entry:
-        matched_entry = {
-            "target_class": "Structure",
-            "lat": 27.7172,
-            "lng": 85.3240,
-            "zoom": 15,
-            "pitch": 45,
-            "bearing": 0
+    try:
+        # A. Encode the user's text (e.g., "new building construction") into a vector
+        query_vector = embedder.encode(request.query_text).tolist()
+
+        # B. Query Qdrant for nearest neighbors in real-time
+        search_results = qdrant.search(
+            collection_name=QDRANT_COLLECTION,
+            query_vector=query_vector,
+            limit=request.top_k,
+            # query_filter=qdrant_models.Filter(...) # Add payload filters here if you want hybrid search
+        )
+
+        # C. Process hits and extract the payload (metadata)
+        results = []
+        for hit in search_results:
+            results.append({
+                "id": hit.id,
+                "similarity_score": round(hit.score, 4),
+                "metadata": hit.payload # Contains coordinates, image paths, timestamps, etc.
+            })
+
+        return {
+            "status": "success",
+            "query": request.query_text,
+            "results": results
         }
 
-    # 2. Extract 512-dimensional query vector using RS-CLIP
-    _ = mock_rs_clip_text_encoder(payload.query)
-
-    return SearchTargetResponse(
-        status="TARGET_LOCKED",
-        target_class=matched_entry["target_class"],
-        coordinates=Coordinates(lat=matched_entry["lat"], lng=matched_entry["lng"]),
-        camera=CameraConfig(
-            zoom=matched_entry["zoom"],
-            pitch=matched_entry["pitch"],
-            bearing=matched_entry["bearing"]
-        ),
-        cache_ready=True
-    )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search pipeline failed: {str(e)}")
