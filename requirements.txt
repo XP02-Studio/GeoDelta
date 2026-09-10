@@ -32,3 +32,10 @@ ffmpeg-python>=0.2.0
 onnxruntime>=1.16.0
 opencv-python>=4.8.0
 Pillow>=10.0.0
+
+fastapi
+uvicorn
+python-dotenv
+pydantic
+qdrant-client
+sentence-transformers
