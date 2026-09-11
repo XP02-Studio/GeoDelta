@@ -1,38 +1,48 @@
 import subprocess
 import sys
-import os
 import time
+import atexit
+import os
 
 def main():
-    print("==================================================")
-    print("   SIH262270: Universal Application Runner        ")
-    print("==================================================\n")
+    print("🚀 Starting Geodelta Tactical Platform...")
     
-    # Resolve absolute paths
-    root_dir = os.path.dirname(os.path.abspath(__file__))
-    backend_dir = os.path.join(root_dir, "backend")
-    frontend_dir = os.path.join(root_dir, "frontend")
+    # 1. Start FastAPI Backend (Port 8000)
+    backend_proc = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "main:app", "--port", "8000"], 
+        cwd="backend"
+    )
     
-    print("[+] Initializing FastAPI Backend on Port 8000...")
-    backend_cmd = ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    backend_process = subprocess.Popen(backend_cmd, cwd=backend_dir)
+    # 2. Start ML Engine (Port 5000)
+    ml_proc = subprocess.Popen(
+        [sys.executable, "-m", "src.server"], 
+        cwd="ml-engineer"
+    )
     
-    # Allow backend a moment to spin up
-    time.sleep(2)
-    
-    print("[+] Initializing Vite React Frontend...")
-    # shell=True required for npm execution on Windows
-    frontend_cmd = ["npm", "run", "dev"]
-    frontend_process = subprocess.Popen(frontend_cmd, cwd=frontend_dir, shell=True)
-    
+    # 3. Start React Frontend (Port 5173)
+    # Using shell=False and platform-specific npm to prevent zombie processes
+    npm_cmd = "npm.cmd" if sys.platform == "win32" else "npm"
+    frontend_proc = subprocess.Popen(
+        [npm_cmd, "run", "dev"], 
+        cwd="frontend"
+    )
+
+    # 4. Clean Shutdown Handler
+    def cleanup():
+        print("\n🛑 Shutting down all Geodelta services...")
+        backend_proc.terminate()
+        ml_proc.terminate()
+        frontend_proc.terminate()
+        
+    atexit.register(cleanup)
+
     try:
-        backend_process.wait()
-        frontend_process.wait()
+        # Keep the main thread alive while subprocesses run
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
-        print("\n[!] Shutting down pipeline gracefully...")
-        backend_process.terminate()
-        frontend_process.terminate()
-        sys.exit(0)
+        print("\nExit command received.")
+        # atexit handler will automatically trigger cleanup()
 
 if __name__ == "__main__":
     main()

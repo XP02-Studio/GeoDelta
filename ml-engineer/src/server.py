@@ -132,9 +132,11 @@ def create_app(core: Optional[DeepLearningCore] = None) -> Flask:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Deep Learning Core REST API Server")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host IP to bind")
-    parser.add_argument("--port", type=int, default=8000, help="Port to listen on")
+    parser.add_argument("--port", type=int, default=5000, help="Port to listen on")
     parser.add_argument("--use-fp16", action="store_true", help="Enable FP16 acceleration")
     args = parser.parse_args()
 
     app = create_app()
-    app.run(host=args.host, port=args.port, debug=False)
+    if __name__ == "__main__":
+        # Change port from 8000 to 5000
+        app.run(host="0.0.0.0", port=5000)

@@ -18,9 +18,10 @@ def run_heavy_inference_and_polygonize(sector_id: str, bbox: list, target_query:
     min_x, min_y, max_x, max_y = bbox
     
     # 1. Resolve ML service endpoint (works locally or in docker)
+    # Ensure port is 5000 and endpoint is /analyze
     ml_host = os.environ.get("ML_SERVICE_HOST", "127.0.0.1")
-    ml_port = os.environ.get("ML_SERVICE_PORT", "5000")
-    ml_url = f"http://{ml_host}:{ml_port}/api/v1/detect_changes"
+    ml_port = os.environ.get("ML_SERVICE_PORT", "5000") 
+    ml_url = f"http://{ml_host}:{ml_port}/api/v1/analyze"
     
     # 2. Load T1/T2 tiles for the requested sector
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))

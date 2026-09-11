@@ -5,6 +5,14 @@ from fastapi.responses import JSONResponse
 
 from app.api import search, analyze
 
+# Import the engine at the top of your file if it isn't already there
+from app.db.vector_store import VectorSearchEngine 
+
+# Add this startup hook so Qdrant actually turns on
+@app.on_event("startup")
+async def startup_event():
+    print("Initializing Qdrant Vector Database pool...")
+    await VectorSearchEngine.startup()
 
 app = FastAPI(
     title="Tactical Imagery Analysis Backend",
@@ -15,7 +23,7 @@ app = FastAPI(
 @app.get("/")
 def read_root():
     return {"status": "online", "message": "Geodelta Backend is running"}
-    
+
 from fastapi.middleware.cors import CORSMiddleware
 
 origins = [

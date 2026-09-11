@@ -5,6 +5,9 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
 from dotenv import load_dotenv
 import requests
+from app.schemas.spatial import SearchRequest
+from app.services.semantic_encoder import RSCLIPTextEncoder
+
 
 # Load environment variables (.env)
 load_dotenv()
@@ -12,6 +15,25 @@ load_dotenv()
 # Initialize FastAPI Router
 router = APIRouter()
 
+# 2. Initialize the local encoder 
+encoder = RSCLIPTextEncoder()
+
+@router.post("/api/v1/search/target")
+@router.post("/search")
+async def search_endpoint(request: SearchRequest):
+    try:
+        # 3. Generate the 512-D vector locally! No internet required.
+        # This replaces the entire requests.post(...) block to Hugging Face
+        query_vector = encoder.encode(request.query_text)
+        
+        # 4. Now perform your Qdrant search with the correct 512-D vector
+        # Example (adjust variable names to match your exact Qdrant setup):
+        # hits = await engine.search(query_vector, top_k=request.top_k)
+        
+        return {"status": "success", "vector_length": len(query_vector)} # Add your results here
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 # ---------------------------------------------------------
 # 1. Configuration & Client Initialization
 # ---------------------------------------------------------
@@ -59,8 +81,12 @@ class SearchRequest(BaseModel):
 # ---------------------------------------------------------
 # 3. Real-Time Semantic Search Endpoint
 # ---------------------------------------------------------
+# Add the missing route prefix right above your existing endpoint
+@router.post("/api/v1/search/target")
 @router.post("/search")
-async def perform_semantic_search(request: SearchRequest):
+async def search_endpoint(request: SearchRequest):
+    # Keep your existing Hugging Face search logic here
+    ...
     """
     Takes a natural language query, converts it to a vector, 
     and returns the top_k most similar satellite image records from Qdrant.
