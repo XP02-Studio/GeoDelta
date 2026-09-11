@@ -12,6 +12,10 @@ app = FastAPI(
     description="Offline-ready geospatial change detection and semantic search API."
 )
 
+@app.get("/")
+def read_root():
+    return {"status": "online", "message": "Geodelta Backend is running"}
+    
 from fastapi.middleware.cors import CORSMiddleware
 
 origins = [
