@@ -1,9 +1,25 @@
-fastapi==0.103.1
-uvicorn==0.23.2
-pydantic==2.3.0
-qdrant-client==1.7.3
-asyncpg==0.28.0
-Flask==2.3.3
-torch==2.14.0
-transformers==4.33.1
-numpy==1.25.2
+# Build Tools (Fixes the setuptools crash)
+setuptools
+wheel
+
+# FastAPI Server Core & Async Engine
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6
+python-dotenv
+
+# Spatial & Vector Database Connectors
+psycopg2-binary>=2.9.6
+asyncpg
+qdrant-client>=1.4.0
+
+# External Requests
+requests
+
+# Machine Learning Core (Required for local 512-D RS-CLIP)
+Flask
+torch>=2.2.0
+transformers
+numpy
