@@ -2,12 +2,9 @@ import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
-from qdrant_client.http import models as qdrant_models
 from dotenv import load_dotenv
-import requests
-from app.schemas.spatial import SearchRequest
-from app.services.semantic_encoder import RSCLIPTextEncoder
 
+from app.services.semantic_encoder import RSCLIPTextEncoder
 
 # Load environment variables (.env)
 load_dotenv()
@@ -15,25 +12,6 @@ load_dotenv()
 # Initialize FastAPI Router
 router = APIRouter()
 
-# 2. Initialize the local encoder 
-encoder = RSCLIPTextEncoder()
-
-@router.post("/api/v1/search/target")
-@router.post("/search")
-async def search_endpoint(request: SearchRequest):
-    try:
-        # 3. Generate the 512-D vector locally! No internet required.
-        # This replaces the entire requests.post(...) block to Hugging Face
-        query_vector = encoder.encode(request.query_text)
-        
-        # 4. Now perform your Qdrant search with the correct 512-D vector
-        # Example (adjust variable names to match your exact Qdrant setup):
-        # hits = await engine.search(query_vector, top_k=request.top_k)
-        
-        return {"status": "success", "vector_length": len(query_vector)} # Add your results here
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 # ---------------------------------------------------------
 # 1. Configuration & Client Initialization
 # ---------------------------------------------------------
@@ -51,24 +29,9 @@ except Exception as e:
     print(f"[-] Failed to connect to Qdrant: {e}")
     qdrant = None
 
-HF_API_KEY = os.getenv("HF_API_KEY") # Optional: Add to Render environment if you want real HF inference
+# Initialize the local encoder (512-D RS-CLIP)
+encoder = RSCLIPTextEncoder()
 
-def get_embedding(text: str):
-    """Fetches embedding using HuggingFace Inference API to save local RAM"""
-    if not HF_API_KEY:
-        # Fallback to a dummy vector if no API key is provided, to prevent crash on free tier
-        print("[-] HF_API_KEY not found, using dummy embedding.")
-        return [0.0] * 384
-        
-    api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
-    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-    try:
-        response = requests.post(api_url, headers=headers, json={"inputs": [text], "options": {"wait_for_model": True}})
-        response.raise_for_status()
-        return response.json()[0]
-    except Exception as e:
-        print(f"[-] HF API Embedding failed: {e}")
-        return [0.0] * 384
 
 # ---------------------------------------------------------
 # 2. Pydantic Models for Data Validation
@@ -76,17 +39,14 @@ def get_embedding(text: str):
 class SearchRequest(BaseModel):
     query_text: str
     top_k: int = 5
-    # You can add optional fields here (e.g., location, date_range) if you want to use Qdrant filters
+
 
 # ---------------------------------------------------------
 # 3. Real-Time Semantic Search Endpoint
 # ---------------------------------------------------------
-# Add the missing route prefix right above your existing endpoint
 @router.post("/api/v1/search/target")
 @router.post("/search")
 async def search_endpoint(request: SearchRequest):
-    # Keep your existing Hugging Face search logic here
-    ...
     """
     Takes a natural language query, converts it to a vector, 
     and returns the top_k most similar satellite image records from Qdrant.
@@ -95,29 +55,29 @@ async def search_endpoint(request: SearchRequest):
         raise HTTPException(status_code=500, detail="Vector search engine is offline.")
 
     try:
-        # A. Encode the user's text (e.g., "new building construction") into a vector via API
-        query_vector = get_embedding(request.query_text)
-
-        # B. Query Qdrant for nearest neighbors in real-time
+        # 1. Generate the 512-D vector locally! No internet required.
+        query_vector = encoder.encode(request.query_text)
+        
+        # 2. Query Qdrant for nearest neighbors in real-time
         search_results = qdrant.search(
             collection_name=QDRANT_COLLECTION,
             query_vector=query_vector,
             limit=request.top_k,
-            # query_filter=qdrant_models.Filter(...) # Add payload filters here if you want hybrid search
         )
 
-        # C. Process hits and extract the payload (metadata)
+        # 3. Process hits and extract the payload (metadata)
         results = []
         for hit in search_results:
             results.append({
                 "id": hit.id,
                 "similarity_score": round(hit.score, 4),
-                "metadata": hit.payload # Contains coordinates, image paths, timestamps, etc.
+                "metadata": hit.payload
             })
 
         return {
             "status": "success",
             "query": request.query_text,
+            "vector_length": len(query_vector),
             "results": results
         }
 
