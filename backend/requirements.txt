@@ -4,6 +4,6 @@ pydantic==2.3.0
 qdrant-client==1.7.3
 asyncpg==0.28.0
 Flask==2.3.3
-torch==2.0.1
+torch==2.14.0
 transformers==4.33.1
 numpy==1.25.2
