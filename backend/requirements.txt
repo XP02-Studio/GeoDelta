@@ -15,4 +15,4 @@ qdrant-client>=1.4.0
 requests
 
 # Embeddings
-sentence-transformers
+# (Removed sentence-transformers to save RAM. Using HuggingFace API instead)

@@ -3,8 +3,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
-from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
+import requests
 
 # Load environment variables (.env)
 load_dotenv()
@@ -29,13 +29,24 @@ except Exception as e:
     print(f"[-] Failed to connect to Qdrant: {e}")
     qdrant = None
 
-try:
-    # Load a fast embedding model for real-time text-to-vector conversion
-    # "all-MiniLM-L6-v2" is standard for fast, high-quality semantic search
-    embedder = SentenceTransformer("all-MiniLM-L6-v2")
-except Exception as e:
-    print(f"[-] Failed to load SentenceTransformer: {e}")
-    embedder = None
+HF_API_KEY = os.getenv("HF_API_KEY") # Optional: Add to Render environment if you want real HF inference
+
+def get_embedding(text: str):
+    """Fetches embedding using HuggingFace Inference API to save local RAM"""
+    if not HF_API_KEY:
+        # Fallback to a dummy vector if no API key is provided, to prevent crash on free tier
+        print("[-] HF_API_KEY not found, using dummy embedding.")
+        return [0.0] * 384
+        
+    api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+    try:
+        response = requests.post(api_url, headers=headers, json={"inputs": [text], "options": {"wait_for_model": True}})
+        response.raise_for_status()
+        return response.json()[0]
+    except Exception as e:
+        print(f"[-] HF API Embedding failed: {e}")
+        return [0.0] * 384
 
 # ---------------------------------------------------------
 # 2. Pydantic Models for Data Validation
@@ -54,12 +65,12 @@ async def perform_semantic_search(request: SearchRequest):
     Takes a natural language query, converts it to a vector, 
     and returns the top_k most similar satellite image records from Qdrant.
     """
-    if not qdrant or not embedder:
+    if not qdrant:
         raise HTTPException(status_code=500, detail="Vector search engine is offline.")
 
     try:
-        # A. Encode the user's text (e.g., "new building construction") into a vector
-        query_vector = embedder.encode(request.query_text).tolist()
+        # A. Encode the user's text (e.g., "new building construction") into a vector via API
+        query_vector = get_embedding(request.query_text)
 
         # B. Query Qdrant for nearest neighbors in real-time
         search_results = qdrant.search(
