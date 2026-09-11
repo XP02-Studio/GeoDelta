@@ -5,8 +5,17 @@ import asyncio
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-import torch
-import pytest
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+
+try:
+    import pytest
+    HAS_PYTEST = True
+except ImportError:
+    HAS_PYTEST = False
 
 from app.core.config import settings
 from app.db.postgres import insert_detected_change
@@ -36,7 +45,7 @@ class PipelineOrchestrator:
     """
 
     def __init__(self):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if HAS_TORCH and torch.cuda.is_available() else "cpu"
         self._dl_core = None
 
     def get_dl_core(self):
@@ -66,8 +75,11 @@ class PipelineOrchestrator:
     def run_automated_tests(self, tests_path: Optional[str] = None) -> bool:
         """Executes automated PyTest test suite."""
         target_path = tests_path or str(Path(__file__).resolve().parents[2] / "tests")
-        retcode = pytest.main(["-v", target_path])
-        return retcode == 0
+        if HAS_PYTEST:
+            retcode = pytest.main(["-v", target_path])
+            return retcode == 0
+        print("[!] pytest is not installed. Skipping tests.")
+        return False
 
     def run_latency_benchmark(self, iterations: int = 25, warmup: int = 5) -> bool:
         """Validates that inference satisfies the target SLA budget."""

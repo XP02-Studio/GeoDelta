@@ -3,9 +3,6 @@ from fastapi import APIRouter, status
 from app.schemas.spatial import (
     AnalyzeSectorRequest,
     GeoJSONFeatureCollection,
-    GeoJSONFeature,
-    GeoJSONGeometry,
-    TargetProperties
 )
 
 router = APIRouter(prefix="/api/v1/analyze", tags=["Analyze"])
