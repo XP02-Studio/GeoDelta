@@ -1,36 +1,9 @@
-import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from qdrant_client import QdrantClient
-from dotenv import load_dotenv
-
-from app.services.semantic_encoder import RSCLIPTextEncoder
-
-# Load environment variables (.env)
-load_dotenv()
+from app.db.vector_store import vector_engine
 
 # Initialize FastAPI Router
 router = APIRouter()
-
-# ---------------------------------------------------------
-# 1. Configuration & Client Initialization
-# ---------------------------------------------------------
-QDRANT_URL = os.getenv("QDRANT_URL")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "geospatial_metadata") # Change if your collection name differs
-
-try:
-    # Connect to Qdrant Cloud
-    qdrant = QdrantClient(
-        url=QDRANT_URL, 
-        api_key=QDRANT_API_KEY
-    )
-except Exception as e:
-    print(f"[-] Failed to connect to Qdrant: {e}")
-    qdrant = None
-
-# Initialize the local encoder (512-D RS-CLIP)
-encoder = RSCLIPTextEncoder()
 
 
 # ---------------------------------------------------------
@@ -51,35 +24,24 @@ async def search_endpoint(request: SearchRequest):
     Takes a natural language query, converts it to a vector, 
     and returns the top_k most similar satellite image records from Qdrant.
     """
-    if not qdrant:
-        raise HTTPException(status_code=500, detail="Vector search engine is offline.")
-
     try:
-        # 1. Generate the 512-D vector locally! No internet required.
-        query_vector = encoder.encode(request.query_text)
-        
-        # 2. Query Qdrant for nearest neighbors in real-time
-        search_results = qdrant.search(
-            collection_name=QDRANT_COLLECTION,
-            query_vector=query_vector,
-            limit=request.top_k,
-        )
+        query = request.query_text.strip()
+        if not query:
+            raise HTTPException(status_code=422, detail="query_text must not be empty")
 
-        # 3. Process hits and extract the payload (metadata)
-        results = []
-        for hit in search_results:
-            results.append({
-                "id": hit.id,
-                "similarity_score": round(hit.score, 4),
-                "metadata": hit.payload
-            })
+        # The shared engine returns Qdrant hits joined to their PostGIS geometry,
+        # including the latitude and longitude the frontend needs to navigate.
+        results = await vector_engine.search_similar_targets(query, limit=request.top_k)
 
         return {
             "status": "success",
-            "query": request.query_text,
-            "vector_length": len(query_vector),
+            "query": query,
             "results": results
         }
 
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search pipeline failed: {str(e)}")

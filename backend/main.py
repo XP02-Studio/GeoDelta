@@ -6,19 +6,22 @@ from fastapi.responses import JSONResponse
 from app.api import search, analyze
 
 # Import the engine at the top of your file if it isn't already there
-from app.db.vector_store import VectorSearchEngine 
-
-# Add this startup hook so Qdrant actually turns on
-@app.on_event("startup")
-async def startup_event():
-    print("Initializing Qdrant Vector Database pool...")
-    await VectorSearchEngine.startup()
+from app.db.vector_store import vector_engine
 
 app = FastAPI(
     title="Tactical Imagery Analysis Backend",
     version="1.0.0",
     description="Offline-ready geospatial change detection and semantic search API."
 )
+
+@app.on_event("startup")
+async def startup_event():
+    print("Initializing Qdrant Vector Database pool...")
+    await vector_engine.startup()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await vector_engine.close()
 
 @app.get("/")
 def read_root():
