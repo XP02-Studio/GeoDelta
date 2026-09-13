@@ -15,8 +15,7 @@ psycopg2-binary>=2.9.6
 asyncpg
 qdrant-client>=1.4.0
 
-# HTTP client for ML engine & STAC/geocoder calls
+# HTTP client & image handling
 requests
 numpy
 Pillow
-rasterio
