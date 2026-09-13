@@ -1,7 +1,6 @@
 """Live geocoding + STAC satellite imagery discovery.
 
-Downloads small overview thumbnails from STAC (JPEG, ~200KB each)
-and serves them as static files for the frontend ImageOverlay.
+Downloads overview thumbnails from STAC and serves them as static files.
 """
 from __future__ import annotations
 
@@ -25,6 +24,7 @@ _GEOCODE_CACHE: dict[str, dict[str, Any]] = {}
 _GEOCODER_TIMEOUT = 12
 _STAC_TIMEOUT = 15
 _IMAGE_DOWNLOAD_TIMEOUT = 15
+_DOWNLOADABLE_ASSETS = ("overview", "thumbnail")
 
 
 def _env(name: str, default: str) -> str:
@@ -107,21 +107,32 @@ def _stac_items(bbox: list[float]) -> tuple[dict[str, Any], dict[str, Any]]:
     return features[0], features[-1]
 
 
-def _pick_asset(item: dict[str, Any]) -> str:
-    assets = item.get("assets", {})
-    for key in ("overview", "thumbnail", "rendered_preview", "visual"):
-        asset = assets.get(key)
-        if asset and asset.get("href"):
-            return asset["href"]
-    raise LookupError("STAC item has no usable image asset.")
-
-
-def _download_as_png(href: str, destination: Path) -> None:
+def _download_as_png(href: str, destination: Path) -> bool:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    resp = requests.get(href, timeout=_IMAGE_DOWNLOAD_TIMEOUT)
-    resp.raise_for_status()
-    img = Image.open(io.BytesIO(resp.content)).convert("RGB")
-    img.save(destination, format="PNG")
+    try:
+        resp = requests.get(href, timeout=_IMAGE_DOWNLOAD_TIMEOUT)
+        resp.raise_for_status()
+        img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+        img.save(destination, format="PNG")
+        return True
+    except Exception as exc:
+        print(f"[live_search] download failed for {href[:80]}: {exc}")
+        return False
+
+
+def _download_item_assets(item: dict[str, Any], tiles_dir: Path, prefix: str) -> dict[str, Any]:
+    assets = item.get("assets", {})
+    result: dict[str, Any] = {}
+    for key in _DOWNLOADABLE_ASSETS:
+        asset = assets.get(key)
+        if not asset or not asset.get("href"):
+            continue
+        filename = f"{prefix}_{key}.png"
+        dest = tiles_dir / filename
+        print(f"[live_search] downloading {prefix} {key}...")
+        if _download_as_png(asset["href"], dest):
+            result[key] = f"/tiles/live/{tiles_dir.name}/{filename}"
+    return result
 
 
 def create_live_search(query: str) -> dict[str, Any]:
@@ -130,18 +141,14 @@ def create_live_search(query: str) -> dict[str, Any]:
 
     asset_id = uuid.uuid4().hex
     tiles_dir = _tiles_dir() / asset_id
-    t1_path = tiles_dir / "t1.png"
-    t2_path = tiles_dir / "t2.png"
 
-    t1_href = _pick_asset(first)
-    t2_href = _pick_asset(latest)
-    print(f"[live_search] t1 asset: {t1_href[:120]}")
-    print(f"[live_search] t2 asset: {t2_href[:120]}")
-    _download_as_png(t2_href, t2_path)
+    t1_layers = _download_item_assets(first, tiles_dir, "t1")
+    t2_layers = _download_item_assets(latest, tiles_dir, "t2")
+
+    default_t2 = t2_layers.get("overview") or next(iter(t2_layers.values()), None)
+    default_t1 = t1_layers.get("overview") or next(iter(t1_layers.values()), None)
 
     LIVE_CACHE[asset_id] = {
-        "t1_path": str(t1_path),
-        "t2_path": str(t2_path),
         "bbox": location["bbox"],
         "query": query,
     }
@@ -154,8 +161,10 @@ def create_live_search(query: str) -> dict[str, Any]:
         "bbox": location["bbox"],
         "asset_id": asset_id,
         "imagery": {
-            "t1_url": f"/tiles/live/{asset_id}/t1.png",
-            "t2_url": f"/tiles/live/{asset_id}/t2.png",
+            "t1_url": default_t1,
+            "t2_url": default_t2,
+            "t1_layers": t1_layers,
+            "t2_layers": t2_layers,
             "t1_datetime": first.get("properties", {}).get("datetime"),
             "t2_datetime": latest.get("properties", {}).get("datetime"),
         },

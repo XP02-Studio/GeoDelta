@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { MapContainer, GeoJSON, ImageOverlay, TileLayer, useMap, Pane } from 'react-leaflet';
 import * as turf from '@turf/turf';
 import { useAppContext } from '../context/AppContext';
-import { Crosshair, Play, Copy, CheckCircle2 } from 'lucide-react';
+import { Crosshair, Play, Copy, CheckCircle2, Layers, Eye } from 'lucide-react';
 
 // Helper component to recenter map when coordinates change
 const MapUpdater = ({ center, bounds, zoom }) => {
@@ -24,6 +24,10 @@ const TacticalMap = () => {
   const [scanStep, setScanStep] = useState(0); // 0: Idle, 1: Align, 2: ChangeFormer, 3: RS-CLIP, 4: Done
   const [sliderValue, setSliderValue] = useState(50);
   const [copied, setCopied] = useState(false);
+  const [activeLayer, setActiveLayer] = useState('t2');
+  const [overlayOpacity, setOverlayOpacity] = useState(0.65);
+  const [t2LayerKey, setT2LayerKey] = useState('overview');
+  const [t1LayerKey, setT1LayerKey] = useState('overview');
 
   // When returning to 3D, reset states
   useEffect(() => {
@@ -32,6 +36,10 @@ const TacticalMap = () => {
       setAreaMetric(0);
       setScanStep(0);
       setSliderValue(50);
+      setActiveLayer('t2');
+      setOverlayOpacity(0.65);
+      setT2LayerKey('overview');
+      setT1LayerKey('overview');
     }
   }, [is2DView]);
 
@@ -128,33 +136,101 @@ const TacticalMap = () => {
           attribution='&copy; Esri, Maxar, Earthstar Geographics'
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         />
-        {liveSearch?.imagery?.t2_url && targetBounds && <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${liveSearch.imagery.t2_url}`} bounds={targetBounds} opacity={1} />}
-        {liveSearch?.imagery?.t1_url && targetBounds && (
-          <Pane name="historical" style={{ zIndex: 400, clipPath: `polygon(0 0, ${sliderValue}% 0, ${sliderValue}% 100%, 0 100%)` }}>
-            <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${liveSearch.imagery.t1_url}`} bounds={targetBounds} opacity={1} />
-          </Pane>
-        )}
+        {liveSearch?.imagery?.t2_layers && targetBounds && (() => {
+          const baseUrl = liveSearch.imagery.t2_layers[t2LayerKey] || liveSearch.imagery.t2_url;
+          return baseUrl ? <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${baseUrl}`} bounds={targetBounds} opacity={overlayOpacity} /> : null;
+        })()}
+        {liveSearch?.imagery?.t1_layers && targetBounds && activeLayer === 't1' && (() => {
+          const baseUrl = liveSearch.imagery.t1_layers[t1LayerKey] || liveSearch.imagery.t1_url;
+          return baseUrl ? (
+            <Pane name="historical" style={{ zIndex: 400, clipPath: `polygon(0 0, ${sliderValue}% 0, ${sliderValue}% 100%, 0 100%)` }}>
+              <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${baseUrl}`} bounds={targetBounds} opacity={overlayOpacity} />
+            </Pane>
+          ) : null;
+        })()}
         
         <MapUpdater center={[targetCoordinates.lat, targetCoordinates.lng]} bounds={targetBounds} zoom={15} />
 
         {geoData && <GeoJSON data={geoData} style={geoJsonStyle} />}
       </MapContainer>
 
-      {/* Swipe Slider UI */}
-      {is2DView && (
-        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20 w-1/3 min-w-[300px]">
-           <div className="bg-tactical-dark/80 backdrop-blur-md px-6 py-4 rounded-full border border-white/20 flex flex-col items-center shadow-2xl">
-              <div className="flex justify-between w-full text-xs font-mono text-gray-400 mb-2">
-                 <span>T1 (HISTORICAL)</span>
-                 <span>T2 (CURRENT)</span>
+      {/* Bottom Controls Bar */}
+      {is2DView && liveSearch && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 w-[90%] max-w-2xl">
+           <div className="bg-tactical-dark/85 backdrop-blur-md px-5 py-3 rounded-xl border border-white/15 flex flex-col gap-3 shadow-2xl">
+              
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-neon-cyan" />
+                  <label className="text-[10px] font-mono text-gray-400">LAYER</label>
+                  <select
+                    value={t2LayerKey}
+                    onChange={(e) => setT2LayerKey(e.target.value)}
+                    className="bg-black/50 border border-white/15 rounded px-2 py-1 text-[11px] font-mono text-white focus:outline-none focus:border-neon-cyan"
+                  >
+                    {liveSearch.imagery.t2_layers && Object.keys(liveSearch.imagery.t2_layers).map(k => (
+                      <option key={k} value={k}>{k.toUpperCase()}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                  <Eye className="w-3.5 h-3.5 text-gray-400" />
+                  <label className="text-[10px] font-mono text-gray-400">OPACITY</label>
+                  <input 
+                    type="range" 
+                    min="0" max="100" 
+                    value={Math.round(overlayOpacity * 100)} 
+                    onChange={(e) => setOverlayOpacity(Number(e.target.value) / 100)}
+                    className="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-neon-cyan focus:outline-none"
+                  />
+                  <span className="text-[10px] font-mono text-gray-500 w-8 text-right">{Math.round(overlayOpacity * 100)}%</span>
+                </div>
               </div>
-              <input 
-                type="range" 
-                min="0" max="100" 
-                value={sliderValue} 
-                onChange={(e) => setSliderValue(e.target.value)}
-                className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-neon-cyan focus:outline-none"
-              />
+
+              <div className="flex items-center gap-3">
+                <div className="flex bg-black/40 rounded border border-white/10 overflow-hidden">
+                  <button
+                    onClick={() => setActiveLayer('t2')}
+                    className={`px-3 py-1 text-[10px] font-mono transition-all ${activeLayer === 't2' ? 'bg-neon-cyan/20 text-neon-cyan' : 'text-gray-500 hover:text-white'}`}
+                  >
+                    T2 (CURRENT)
+                  </button>
+                  <button
+                    onClick={() => setActiveLayer('t1')}
+                    className={`px-3 py-1 text-[10px] font-mono transition-all ${activeLayer === 't1' ? 'bg-neon-cyan/20 text-neon-cyan' : 'text-gray-500 hover:text-white'}`}
+                  >
+                    T1 (HISTORICAL)
+                  </button>
+                </div>
+
+                {activeLayer === 't1' && (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input 
+                      type="range" 
+                      min="0" max="100" 
+                      value={sliderValue} 
+                      onChange={(e) => setSliderValue(e.target.value)}
+                      className="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-neon-cyan focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                {activeLayer === 't1' && (
+                  <div className="flex bg-black/40 rounded border border-white/10 overflow-hidden">
+                    <select
+                      value={t1LayerKey}
+                      onChange={(e) => setT1LayerKey(e.target.value)}
+                      className="bg-transparent border-0 rounded px-2 py-1 text-[11px] font-mono text-white focus:outline-none"
+                    >
+                      {liveSearch.imagery.t1_layers && Object.keys(liveSearch.imagery.t1_layers).map(k => (
+                        <option key={k} value={k}>{k.toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
            </div>
         </div>
       )}
