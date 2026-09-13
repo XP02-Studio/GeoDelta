@@ -17,10 +17,10 @@ import requests
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 LIVE_CACHE: dict[str, dict[str, Any]] = {}
+_GEOCODE_CACHE: dict[str, dict[str, Any]] = {}
 
 _GEOCODER_TIMEOUT = 12
 _STAC_TIMEOUT = 15
-_GEOCODER_RETRIES = 3
 
 
 def _env(name: str, default: str) -> str:
@@ -37,38 +37,46 @@ def _location_terms(query: str) -> list[str]:
 
 
 def geocode(query: str) -> dict[str, Any]:
+    cache_key = query.strip().lower()
+    if cache_key in _GEOCODE_CACHE:
+        return _GEOCODE_CACHE[cache_key]
+
     url = _env("GEOCODER_URL", NOMINATIM_URL)
-    headers = {"User-Agent": "GeoDelta-LiveSearch/1.0 (student-project)"}
+    headers = {"User-Agent": "GeoDelta-LiveSearch/1.0 (student-project; geodelta-sih)"}
     last_error = None
     for candidate in _location_terms(query):
-        for attempt in range(_GEOCODER_RETRIES):
-            try:
-                print(f"[geocode] attempt={attempt+1} candidate={candidate!r} url={url}")
-                resp = requests.get(
-                    url,
-                    params={"q": candidate, "format": "jsonv2", "limit": 1},
-                    headers=headers,
-                    timeout=_GEOCODER_TIMEOUT,
-                )
-                print(f"[geocode] status={resp.status_code} body_len={len(resp.text)}")
-                resp.raise_for_status()
-                matches = resp.json()
-                if not matches:
-                    print(f"[geocode] empty results for {candidate!r}")
-                    continue
-                r = matches[0]
-                south, north, west, east = map(float, r["boundingbox"])
-                return {
-                    "label": r.get("display_name", candidate),
-                    "center": {"lat": float(r["lat"]), "lng": float(r["lon"])},
-                    "bbox": [west, south, east, north],
-                }
-            except Exception as exc:
-                last_error = exc
-                print(f"[geocode] error attempt={attempt+1}: {exc}")
-                if attempt < _GEOCODER_RETRIES - 1:
-                    time.sleep(1)
+        try:
+            print(f"[geocode] candidate={candidate!r} url={url}")
+            resp = requests.get(
+                url,
+                params={"q": candidate, "format": "jsonv2", "limit": 1},
+                headers=headers,
+                timeout=_GEOCODER_TIMEOUT,
+            )
+            print(f"[geocode] status={resp.status_code} body_len={len(resp.text)}")
+            if resp.status_code == 429:
+                last_error = "Rate limited by geocoder (429)"
+                print(f"[geocode] rate limited, waiting 2s before next candidate")
+                time.sleep(2)
                 continue
+            resp.raise_for_status()
+            matches = resp.json()
+            if not matches:
+                print(f"[geocode] empty results for {candidate!r}")
+                continue
+            r = matches[0]
+            south, north, west, east = map(float, r["boundingbox"])
+            result = {
+                "label": r.get("display_name", candidate),
+                "center": {"lat": float(r["lat"]), "lng": float(r["lon"])},
+                "bbox": [west, south, east, north],
+            }
+            _GEOCODE_CACHE[cache_key] = result
+            return result
+        except Exception as exc:
+            last_error = exc
+            print(f"[geocode] error: {exc}")
+            continue
     raise LookupError(f"No geographic location could be resolved from the query. Last error: {last_error}")
 
 
