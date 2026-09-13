@@ -26,7 +26,7 @@ export const AppProvider = ({ children }) => {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ query_text: query, top_k: 5 })
+        body: JSON.stringify({ query_text: query })
       });
 
       if (!response.ok) {
