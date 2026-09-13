@@ -99,7 +99,7 @@ def _stac_items(bbox: list[float]) -> tuple[dict[str, Any], dict[str, Any]]:
 
 def _visual_asset(item: dict[str, Any]) -> dict[str, Any] | None:
     assets = item.get("assets", {})
-    for key in ("visual", "rendered_preview", "thumbnail", "overview"):
+    for key in ("rendered_preview", "overview", "thumbnail"):
         asset = assets.get(key)
         if asset and asset.get("href"):
             return {"key": key, "href": asset["href"], "title": asset.get("title", key)}

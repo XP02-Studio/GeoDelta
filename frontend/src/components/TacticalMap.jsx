@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { MapContainer, GeoJSON, ImageOverlay, useMap, Pane } from 'react-leaflet';
+import { MapContainer, GeoJSON, ImageOverlay, TileLayer, useMap, Pane } from 'react-leaflet';
 import * as turf from '@turf/turf';
 import { useAppContext } from '../context/AppContext';
 import { Crosshair, Play, Copy, CheckCircle2 } from 'lucide-react';
@@ -124,10 +124,14 @@ const TacticalMap = () => {
         zoomControl={false}
         className="w-full h-full bg-tactical-dark z-0"
       >
-        {liveSearch?.imagery?.t2_url && targetBounds && <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${liveSearch.imagery.t2_url}`} bounds={targetBounds} opacity={1} />}
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {liveSearch?.imagery?.t2_url && targetBounds && <ImageOverlay url={liveSearch.imagery.t2_url} bounds={targetBounds} opacity={1} />}
         {liveSearch?.imagery?.t1_url && targetBounds && (
           <Pane name="historical" style={{ zIndex: 400, clipPath: `polygon(0 0, ${sliderValue}% 0, ${sliderValue}% 100%, 0 100%)` }}>
-            <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${liveSearch.imagery.t1_url}`} bounds={targetBounds} opacity={1} />
+            <ImageOverlay url={liveSearch.imagery.t1_url} bounds={targetBounds} opacity={1} />
           </Pane>
         )}
         
