@@ -13,7 +13,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TRANSFORMERS_OFFLINE=1 \
     ALLOW_INTERNET=0 \
     CUDA_VISIBLE_DEVICES=0 \
-    PORT=8000
+    PORT=5000
 
 # Install system dependencies (OpenCV, GL, build tools)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -51,11 +51,11 @@ COPY cli.py /workspace/cli.py
 COPY benchmark.py /workspace/benchmark.py
 
 # Expose API port
-EXPOSE 8000
+EXPOSE 5000
 
 # Healthcheck to verify offline model warm-up status
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+    CMD curl -f http://localhost:5000/api/v1/health || exit 1
 
 # Launch the optimized production inference server
-CMD ["python", "-m", "src.server", "--host", "0.0.0.0", "--port", "8000", "--use-fp16"]
+CMD ["python", "-m", "src.server", "--host", "0.0.0.0", "--port", "5000", "--use-fp16"]

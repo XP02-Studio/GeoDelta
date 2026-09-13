@@ -4,13 +4,14 @@ from app.schemas.spatial import (
     AnalyzeSectorRequest,
     GeoJSONFeatureCollection,
 )
+from app.services.live_search import get_live_pair
 
 router = APIRouter(prefix="/api/v1/analyze", tags=["Analyze"])
 
 import os
 import requests
 
-def run_heavy_inference_and_polygonize(sector_id: str, bbox: list, target_query: str) -> dict:
+def run_heavy_inference_and_polygonize(sector_id: str, bbox: list, target_query: str, asset_id: str | None = None) -> dict:
     """
     Calls the actual Deep Learning Core (ChangeFormer + RS-CLIP) via the ML Service API.
     Converts returned normalized pixel polygons into true geographic coordinates.
@@ -24,9 +25,13 @@ def run_heavy_inference_and_polygonize(sector_id: str, bbox: list, target_query:
     ml_url = f"http://{ml_host}:{ml_port}/api/v1/analyze"
     
     # 2. Load T1/T2 tiles for the requested sector
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    t1_path = os.path.join(base_dir, "tiles", "t1_chip.webp")
-    t2_path = os.path.join(base_dir, "tiles", "t2_chip.webp")
+    if asset_id:
+        pair = get_live_pair(asset_id)
+        t1_path, t2_path = pair["t1_path"], pair["t2_path"]
+    else:
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        t1_path = os.path.join(base_dir, "tiles", "t1_chip.webp")
+        t2_path = os.path.join(base_dir, "tiles", "t2_chip.webp")
     
     features = []
     
@@ -128,7 +133,8 @@ async def analyze_sector(payload: AnalyzeSectorRequest):
         run_heavy_inference_and_polygonize,
         payload.sector_id,
         payload.bbox,
-        payload.target_query
+        payload.target_query,
+        payload.asset_id,
     )
     
     return geojson_result

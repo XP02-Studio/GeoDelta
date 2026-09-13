@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.db.vector_store import vector_engine
+import asyncio
+
+from app.services.live_search import create_live_search
 
 # Initialize FastAPI Router
 router = APIRouter()
@@ -11,7 +13,6 @@ router = APIRouter()
 # ---------------------------------------------------------
 class SearchRequest(BaseModel):
     query_text: str
-    top_k: int = 5
 
 
 # ---------------------------------------------------------
@@ -29,19 +30,11 @@ async def search_endpoint(request: SearchRequest):
         if not query:
             raise HTTPException(status_code=422, detail="query_text must not be empty")
 
-        # The shared engine returns Qdrant hits joined to their PostGIS geometry,
-        # including the latitude and longitude the frontend needs to navigate.
-        results = await vector_engine.search_similar_targets(query, limit=request.top_k)
-
-        return {
-            "status": "success",
-            "query": query,
-            "results": results
-        }
+        return await asyncio.to_thread(create_live_search, query)
 
     except HTTPException:
         raise
-    except RuntimeError as e:
+    except (RuntimeError, LookupError) as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search pipeline failed: {str(e)}")

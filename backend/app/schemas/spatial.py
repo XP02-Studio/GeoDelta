@@ -44,6 +44,7 @@ class AnalyzeSectorRequest(BaseModel):
         example=[85.3100, 27.7000, 85.3400, 27.7300]
     )
     target_query: str = Field(..., example="Airstrip")
+    asset_id: Optional[str] = Field(None, description="Live STAC image-pair cache identifier")
 
 
 class TargetProperties(BaseModel):

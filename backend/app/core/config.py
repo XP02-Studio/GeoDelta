@@ -14,8 +14,13 @@ class Settings(BaseSettings):
     POSTGRES_URL: str = os.getenv("DATABASE_URL", "postgresql://geodelta:geodelta@localhost:5432/geodelta")
 
     # ML Inference & Threshold Settings
-    SEARCH_SCORE_THRESHOLD: float = 0.85
+    SEARCH_SCORE_THRESHOLD: float = 0.3
     RSCLIP_ENCODER: str = ""
+
+    # Live-search services. Set these to internal mirrors in an air-gapped deployment.
+    GEOCODER_URL: str = os.getenv("GEOCODER_URL", "https://nominatim.openstreetmap.org/search")
+    STAC_API_URL: str = os.getenv("STAC_API_URL", "https://earth-search.aws.element84.com/v1")
+    STAC_COLLECTION: str = os.getenv("STAC_COLLECTION", "sentinel-2-l2a")
 
     # Pipeline Data Paths
     RAW_DATA_DIR: str = "./data/raw"

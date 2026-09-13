@@ -1,20 +1,24 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, GeoJSON, useMap, Pane } from 'react-leaflet';
+import { MapContainer, GeoJSON, ImageOverlay, useMap, Pane } from 'react-leaflet';
 import * as turf from '@turf/turf';
 import { useAppContext } from '../context/AppContext';
 import { Crosshair, Play, Copy, CheckCircle2 } from 'lucide-react';
 
 // Helper component to recenter map when coordinates change
-const MapUpdater = ({ center, zoom }) => {
+const MapUpdater = ({ center, bounds, zoom }) => {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, zoom, { animate: false });
-  }, [center, zoom, map]);
+    if (bounds) {
+      map.flyToBounds(bounds, { animate: true, duration: 1.5, padding: [32, 32] });
+    } else {
+      map.setView(center, zoom, { animate: false });
+    }
+  }, [center, bounds, zoom, map]);
   return null;
 };
 
 const TacticalMap = () => {
-  const { targetCoordinates, is2DView, setIs2DView } = useAppContext();
+  const { targetCoordinates, targetBounds, liveSearch, searchQuery, is2DView, setIs2DView } = useAppContext();
   const [geoData, setGeoData] = useState(null);
   const [areaMetric, setAreaMetric] = useState(0);
   const [scanStep, setScanStep] = useState(0); // 0: Idle, 1: Align, 2: ChangeFormer, 3: RS-CLIP, 4: Done
@@ -39,22 +43,20 @@ const TacticalMap = () => {
     setTimeout(() => setScanStep(3), 1200);
     
     try {
-      const offset = 0.005;
-      const minX = targetCoordinates.lng - offset;
-      const minY = targetCoordinates.lat - offset;
-      const maxX = targetCoordinates.lng + offset;
-      const maxY = targetCoordinates.lat + offset;
+      if (!liveSearch?.asset_id || !targetBounds) throw new Error("Run a live search before scanning.");
+      const [[minY, minX], [maxY, maxX]] = targetBounds;
 
-      const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+      const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
       const response = await fetch(`${API_URL}/api/v1/analyze/sector`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          sector_id: "SEC-CURRENT",
+          sector_id: liveSearch.asset_id,
           bbox: [minX, minY, maxX, maxY],
-          target_query: "Threat"
+          target_query: searchQuery,
+          asset_id: liveSearch.asset_id
         })
       });
 
@@ -122,21 +124,14 @@ const TacticalMap = () => {
         zoomControl={false}
         className="w-full h-full bg-tactical-dark z-0"
       >
-        {/* Current Satellite Pass (T2) - Base Layer */}
-        <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          attribution='&copy; Esri'
-        />
-
-        {/* Historical Satellite Pass (T1) - Clipped via Slider */}
-        <Pane name="historical" style={{ zIndex: 400, clipPath: `polygon(0 0, ${sliderValue}% 0, ${sliderValue}% 100%, 0 100%)` }}>
-           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; CARTO'
-          />
-        </Pane>
+        {liveSearch?.imagery?.t2_url && targetBounds && <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${liveSearch.imagery.t2_url}`} bounds={targetBounds} opacity={1} />}
+        {liveSearch?.imagery?.t1_url && targetBounds && (
+          <Pane name="historical" style={{ zIndex: 400, clipPath: `polygon(0 0, ${sliderValue}% 0, ${sliderValue}% 100%, 0 100%)` }}>
+            <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${liveSearch.imagery.t1_url}`} bounds={targetBounds} opacity={1} />
+          </Pane>
+        )}
         
-        <MapUpdater center={[targetCoordinates.lat, targetCoordinates.lng]} zoom={15} />
+        <MapUpdater center={[targetCoordinates.lat, targetCoordinates.lng]} bounds={targetBounds} zoom={15} />
 
         {geoData && <GeoJSON data={geoData} style={geoJsonStyle} />}
       </MapContainer>

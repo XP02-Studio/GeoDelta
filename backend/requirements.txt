@@ -17,6 +17,10 @@ qdrant-client>=1.4.0
 
 # External Requests
 requests
+rasterio
+Pillow
+rasterio
+Pillow
 
 # Machine Learning Core (Required for local 512-D RS-CLIP)
 Flask

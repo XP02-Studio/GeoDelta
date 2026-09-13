@@ -164,10 +164,10 @@ async def search(request: SearchRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-    @app.post("/geometry/upsert")
-    async def upsert_geometry(item: SpatialUpsert) -> dict[str, str]:
-        try:
-            await engine.upsert_geometry(item)
-            return {"patch_id": item.patch_id, "status": "stored"}
-        except Exception as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+@app.post("/geometry/upsert")
+async def upsert_geometry(item: SpatialUpsert) -> dict[str, str]:
+    try:
+        await engine.upsert_geometry(item)
+        return {"patch_id": item.patch_id, "status": "stored"}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc

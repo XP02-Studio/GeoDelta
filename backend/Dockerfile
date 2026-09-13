@@ -19,12 +19,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy requirements and offline wheels directory
+# Cloud/staging builds install the declared dependencies. For a fully
+# air-gapped image, build from a base image with an internal package mirror.
 COPY requirements.txt /app/requirements.txt
-COPY wheels/ /app/wheels/
 
-# Install dependencies strictly from local offline wheels (Air-Gapped Execution)
-RUN pip install --no-cache-dir --no-index --find-links=/app/wheels/ -r /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy backend source code into container
 COPY . /app/
@@ -32,9 +31,9 @@ COPY . /app/
 # Expose Uvicorn server port
 EXPOSE 8000
 
-# Health check targeting search endpoint
+# Health check targeting root endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/search/target || exit 1
+    CMD curl -f http://localhost:8000/ || exit 1
 
 # Start Uvicorn Server
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
