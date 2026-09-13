@@ -125,13 +125,13 @@ const TacticalMap = () => {
         className="w-full h-full bg-tactical-dark z-0"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; Esri, Maxar, Earthstar Geographics'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         />
-        {liveSearch?.imagery?.t2_url && targetBounds && <ImageOverlay url={liveSearch.imagery.t2_url} bounds={targetBounds} opacity={1} />}
+        {liveSearch?.imagery?.t2_url && targetBounds && <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${liveSearch.imagery.t2_url}`} bounds={targetBounds} opacity={1} />}
         {liveSearch?.imagery?.t1_url && targetBounds && (
           <Pane name="historical" style={{ zIndex: 400, clipPath: `polygon(0 0, ${sliderValue}% 0, ${sliderValue}% 100%, 0 100%)` }}>
-            <ImageOverlay url={liveSearch.imagery.t1_url} bounds={targetBounds} opacity={1} />
+            <ImageOverlay url={`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}${liveSearch.imagery.t1_url}`} bounds={targetBounds} opacity={1} />
           </Pane>
         )}
         

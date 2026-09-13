@@ -1,18 +1,25 @@
-"""Live geocoding + STAC satellite imagery discovery.
+LIVE_CACHE[asset_id] = {
+    "t1_path": str(t1_path),
+    "t2_path": str(t2_path),
+    "bbox": location["bbox"],
+    "query": query,"""Live geocoding + STAC satellite imagery discovery.
 
-Lightweight version — no rasterio/GDAL, no image downloads.
-Returns STAC asset URLs directly so the frontend can render them
-without blocking the search response.
+Downloads small overview thumbnails from STAC (JPEG, ~200KB each)
+and serves them as static files for the frontend ImageOverlay.
 """
 from __future__ import annotations
 
+import io
 import os
 import re
+import time
+import uuid
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
-import time
 import requests
+from PIL import Image
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 STAC_URL = "https://earth-search.aws.element84.com/v1"
@@ -21,10 +28,17 @@ _GEOCODE_CACHE: dict[str, dict[str, Any]] = {}
 
 _GEOCODER_TIMEOUT = 12
 _STAC_TIMEOUT = 15
+_IMAGE_DOWNLOAD_TIMEOUT = 15
 
 
 def _env(name: str, default: str) -> str:
     return os.getenv(name, default).rstrip("/")
+
+
+def _tiles_dir() -> Path:
+    d = Path(__file__).resolve().parents[2] / "tiles" / "live"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def _location_terms(query: str) -> list[str]:
@@ -56,7 +70,7 @@ def geocode(query: str) -> dict[str, Any]:
             print(f"[geocode] status={resp.status_code} body_len={len(resp.text)}")
             if resp.status_code == 429:
                 last_error = "Rate limited by geocoder (429)"
-                print(f"[geocode] rate limited, waiting 2s before next candidate")
+                print(f"[geocode] rate limited, waiting 2s")
                 time.sleep(2)
                 continue
             resp.raise_for_status()
@@ -87,7 +101,7 @@ def _stac_items(bbox: list[float]) -> tuple[dict[str, Any], dict[str, Any]]:
         "collections": [_env("STAC_COLLECTION", "sentinel-2-l2a")],
         "bbox": bbox,
         "datetime": f"{today - timedelta(days=365)}T00:00:00Z/{today}T23:59:59Z",
-        "limit": 2,
+        "limit": 100,
     }
     resp = requests.post(endpoint, json=payload, timeout=_STAC_TIMEOUT)
     resp.raise_for_status()
@@ -97,42 +111,56 @@ def _stac_items(bbox: list[float]) -> tuple[dict[str, Any], dict[str, Any]]:
     return features[0], features[-1]
 
 
-def _visual_asset(item: dict[str, Any]) -> dict[str, Any] | None:
+def _pick_asset(item: dict[str, Any]) -> str:
     assets = item.get("assets", {})
-    for key in ("rendered_preview", "overview", "thumbnail"):
+    for key in ("rendered_preview", "overview", "thumbnail", "visual"):
         asset = assets.get(key)
         if asset and asset.get("href"):
-            return {"key": key, "href": asset["href"], "title": asset.get("title", key)}
-    return None
+            return asset["href"]
+    raise LookupError("STAC item has no usable image asset.")
+
+
+def _download_as_png(href: str, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    resp = requests.get(href, timeout=_IMAGE_DOWNLOAD_TIMEOUT)
+    resp.raise_for_status()
+    img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+    img.save(destination, format="PNG")
 
 
 def create_live_search(query: str) -> dict[str, Any]:
     location = geocode(query)
     first, latest = _stac_items(location["bbox"])
 
-    first_asset = _visual_asset(first)
-    latest_asset = _visual_asset(latest)
+    asset_id = uuid.uuid4().hex
+    tiles_dir = _tiles_dir() / asset_id
+    t1_path = tiles_dir / "t1.png"
+    t2_path = tiles_dir / "t2.png"
 
-    result: dict[str, Any] = {
+    t1_href = _pick_asset(first)
+    t2_href = _pick_asset(latest)
+    print(f"[live_search] downloading t1 from {t1_href[:80]}...")
+    _download_as_png(t1_href, t1_path)
+    print(f"[live_search] downloading t2 from {t2_href[:80]}...")
+    _download_as_png(t2_href, t2_path)
+
+
+    }
+
+    return {
         "status": "TARGET_READY",
         "query": query,
         "target_label": location["label"],
         "coordinates": location["center"],
         "bbox": location["bbox"],
+        "asset_id": asset_id,
         "imagery": {
+            "t1_url": f"/tiles/live/{asset_id}/t1.png",
+            "t2_url": f"/tiles/live/{asset_id}/t2.png",
             "t1_datetime": first.get("properties", {}).get("datetime"),
             "t2_datetime": latest.get("properties", {}).get("datetime"),
-            "t1_asset_key": first_asset["key"] if first_asset else None,
-            "t2_asset_key": latest_asset["key"] if latest_asset else None,
         },
     }
-
-    if first_asset:
-        result["imagery"]["t1_url"] = first_asset["href"]
-    if latest_asset:
-        result["imagery"]["t2_url"] = latest_asset["href"]
-
-    return result
 
 
 def get_live_pair(asset_id: str) -> dict[str, Any]:
