@@ -15,8 +15,12 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_event():
-    print("Initializing Qdrant Vector Database pool...")
-    await vector_engine.startup()
+    # Database init is optional — live search works without it
+    try:
+        print("Initializing Qdrant Vector Database pool...")
+        await vector_engine.startup()
+    except Exception as e:
+        print(f"[startup] Database init skipped (vector search unavailable): {e}")
 
     # Auto-seed: check if Qdrant is empty, populate if so
     try:
