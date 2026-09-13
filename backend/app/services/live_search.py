@@ -11,14 +11,16 @@ import re
 from datetime import date, timedelta
 from typing import Any
 
+import time
 import requests
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 LIVE_CACHE: dict[str, dict[str, Any]] = {}
 
-_GEOCODER_TIMEOUT = 8
-_STAC_TIMEOUT = 10
+_GEOCODER_TIMEOUT = 12
+_STAC_TIMEOUT = 15
+_GEOCODER_RETRIES = 3
 
 
 def _env(name: str, default: str) -> str:
@@ -36,29 +38,38 @@ def _location_terms(query: str) -> list[str]:
 
 def geocode(query: str) -> dict[str, Any]:
     url = _env("GEOCODER_URL", NOMINATIM_URL)
-    headers = {"User-Agent": "GeoDelta-LiveSearch/1.0"}
+    headers = {"User-Agent": "GeoDelta-LiveSearch/1.0 (student-project)"}
+    last_error = None
     for candidate in _location_terms(query):
-        try:
-            resp = requests.get(
-                url,
-                params={"q": candidate, "format": "jsonv2", "limit": 1},
-                headers=headers,
-                timeout=_GEOCODER_TIMEOUT,
-            )
-            resp.raise_for_status()
-            matches = resp.json()
-            if not matches:
+        for attempt in range(_GEOCODER_RETRIES):
+            try:
+                print(f"[geocode] attempt={attempt+1} candidate={candidate!r} url={url}")
+                resp = requests.get(
+                    url,
+                    params={"q": candidate, "format": "jsonv2", "limit": 1},
+                    headers=headers,
+                    timeout=_GEOCODER_TIMEOUT,
+                )
+                print(f"[geocode] status={resp.status_code} body_len={len(resp.text)}")
+                resp.raise_for_status()
+                matches = resp.json()
+                if not matches:
+                    print(f"[geocode] empty results for {candidate!r}")
+                    continue
+                r = matches[0]
+                south, north, west, east = map(float, r["boundingbox"])
+                return {
+                    "label": r.get("display_name", candidate),
+                    "center": {"lat": float(r["lat"]), "lng": float(r["lon"])},
+                    "bbox": [west, south, east, north],
+                }
+            except Exception as exc:
+                last_error = exc
+                print(f"[geocode] error attempt={attempt+1}: {exc}")
+                if attempt < _GEOCODER_RETRIES - 1:
+                    time.sleep(1)
                 continue
-            r = matches[0]
-            south, north, west, east = map(float, r["boundingbox"])
-            return {
-                "label": r.get("display_name", candidate),
-                "center": {"lat": float(r["lat"]), "lng": float(r["lon"])},
-                "bbox": [west, south, east, north],
-            }
-        except Exception:
-            continue
-    raise LookupError("No geographic location could be resolved from the query.")
+    raise LookupError(f"No geographic location could be resolved from the query. Last error: {last_error}")
 
 
 def _stac_items(bbox: list[float]) -> tuple[dict[str, Any], dict[str, Any]]:
