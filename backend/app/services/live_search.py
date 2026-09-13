@@ -109,7 +109,7 @@ def _stac_items(bbox: list[float]) -> tuple[dict[str, Any], dict[str, Any]]:
 
 def _pick_asset(item: dict[str, Any]) -> str:
     assets = item.get("assets", {})
-    for key in ("rendered_preview", "overview", "thumbnail", "visual"):
+    for key in ("overview", "thumbnail", "rendered_preview", "visual"):
         asset = assets.get(key)
         if asset and asset.get("href"):
             return asset["href"]
@@ -135,9 +135,8 @@ def create_live_search(query: str) -> dict[str, Any]:
 
     t1_href = _pick_asset(first)
     t2_href = _pick_asset(latest)
-    print(f"[live_search] downloading t1 from {t1_href[:80]}...")
-    _download_as_png(t1_href, t1_path)
-    print(f"[live_search] downloading t2 from {t2_href[:80]}...")
+    print(f"[live_search] t1 asset: {t1_href[:120]}")
+    print(f"[live_search] t2 asset: {t2_href[:120]}")
     _download_as_png(t2_href, t2_path)
 
     LIVE_CACHE[asset_id] = {
