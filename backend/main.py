@@ -1,3 +1,4 @@
+import asyncio
 import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -6,11 +7,38 @@ from fastapi.responses import JSONResponse
 from app.api import search, analyze
 
 # Import the engine at the top of your file if it isn't already there
+from app.db.vector_store import vector_engine
+
 app = FastAPI(
     title="Tactical Imagery Analysis Backend",
     version="1.0.0",
     description="Offline-ready geospatial change detection and semantic search API."
 )
+
+@app.on_event("startup")
+async def startup_event():
+    print("Initializing Qdrant Vector Database pool...")
+    await vector_engine.startup()
+
+    # Auto-seed: check if Qdrant is empty, populate if so
+    try:
+        from app.core.config import settings
+        from qdrant_client import AsyncQdrantClient
+        qc = AsyncQdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
+        info = await qc.get_collection(settings.QDRANT_COLLECTION)
+        if info.points_count is None or info.points_count == 0:
+            print("[startup] Qdrant collection is empty — running auto-seed...")
+            import seed_data
+            await seed_data.seed()
+        else:
+            print(f"[startup] Qdrant collection has {info.points_count} points — skipping seed.")
+        await qc.close()
+    except Exception as e:
+        print(f"[startup] Auto-seed skipped: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await vector_engine.close()
 
 @app.get("/")
 def read_root():
