@@ -1,25 +1,24 @@
-"""Live geocoding, STAC discovery, and local image-pair caching.
+"""Live geocoding + STAC satellite imagery discovery.
 
-Lightweight version — no rasterio/GDAL required. Downloads pre-rendered
-STAC thumbnails directly via requests + Pillow.
+Lightweight version — no rasterio/GDAL, no image downloads.
+Returns STAC asset URLs directly so the frontend can render them
+without blocking the search response.
 """
 from __future__ import annotations
 
-import io
 import os
 import re
-import uuid
 from datetime import date, timedelta
-from pathlib import Path
 from typing import Any
 
 import requests
-from PIL import Image
-
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 LIVE_CACHE: dict[str, dict[str, Any]] = {}
+
+_GEOCODER_TIMEOUT = 8
+_STAC_TIMEOUT = 10
 
 
 def _env(name: str, default: str) -> str:
@@ -44,7 +43,7 @@ def geocode(query: str) -> dict[str, Any]:
                 url,
                 params={"q": candidate, "format": "jsonv2", "limit": 1},
                 headers=headers,
-                timeout=15,
+                timeout=_GEOCODER_TIMEOUT,
             )
             resp.raise_for_status()
             matches = resp.json()
@@ -69,9 +68,9 @@ def _stac_items(bbox: list[float]) -> tuple[dict[str, Any], dict[str, Any]]:
         "collections": [_env("STAC_COLLECTION", "sentinel-2-l2a")],
         "bbox": bbox,
         "datetime": f"{today - timedelta(days=365)}T00:00:00Z/{today}T23:59:59Z",
-        "limit": 100,
+        "limit": 2,
     }
-    resp = requests.post(endpoint, json=payload, timeout=30)
+    resp = requests.post(endpoint, json=payload, timeout=_STAC_TIMEOUT)
     resp.raise_for_status()
     features = resp.json().get("features", [])
     if len(features) < 2:
@@ -79,54 +78,42 @@ def _stac_items(bbox: list[float]) -> tuple[dict[str, Any], dict[str, Any]]:
     return features[0], features[-1]
 
 
-def _visual_asset(item: dict[str, Any]) -> str:
+def _visual_asset(item: dict[str, Any]) -> dict[str, Any] | None:
     assets = item.get("assets", {})
     for key in ("visual", "rendered_preview", "thumbnail", "overview"):
-        href = assets.get(key, {}).get("href")
-        if href:
-            return href
-    raise LookupError("The selected STAC item has no displayable asset.")
-
-
-def _download_and_save(asset_href: str, destination: Path) -> None:
-    """Download an image asset and save as PNG."""
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    resp = requests.get(asset_href, timeout=60)
-    resp.raise_for_status()
-    img = Image.open(io.BytesIO(resp.content)).convert("RGB")
-    img.save(destination, format="PNG")
+        asset = assets.get(key)
+        if asset and asset.get("href"):
+            return {"key": key, "href": asset["href"], "title": asset.get("title", key)}
+    return None
 
 
 def create_live_search(query: str) -> dict[str, Any]:
     location = geocode(query)
     first, latest = _stac_items(location["bbox"])
-    asset_id = uuid.uuid4().hex
-    tiles_dir = Path(__file__).resolve().parents[2] / "tiles" / "live" / asset_id
-    t1_path, t2_path = tiles_dir / "t1.png", tiles_dir / "t2.png"
 
-    _download_and_save(_visual_asset(first), t1_path)
-    _download_and_save(_visual_asset(latest), t2_path)
+    first_asset = _visual_asset(first)
+    latest_asset = _visual_asset(latest)
 
-    LIVE_CACHE[asset_id] = {
-        "t1_path": str(t1_path),
-        "t2_path": str(t2_path),
-        "bbox": location["bbox"],
-        "query": query,
-    }
-    return {
+    result: dict[str, Any] = {
         "status": "TARGET_READY",
         "query": query,
         "target_label": location["label"],
         "coordinates": location["center"],
         "bbox": location["bbox"],
-        "asset_id": asset_id,
         "imagery": {
-            "t1_url": f"/tiles/live/{asset_id}/t1.png",
-            "t2_url": f"/tiles/live/{asset_id}/t2.png",
             "t1_datetime": first.get("properties", {}).get("datetime"),
             "t2_datetime": latest.get("properties", {}).get("datetime"),
+            "t1_asset_key": first_asset["key"] if first_asset else None,
+            "t2_asset_key": latest_asset["key"] if latest_asset else None,
         },
     }
+
+    if first_asset:
+        result["imagery"]["t1_url"] = first_asset["href"]
+    if latest_asset:
+        result["imagery"]["t2_url"] = latest_asset["href"]
+
+    return result
 
 
 def get_live_pair(asset_id: str) -> dict[str, Any]:
