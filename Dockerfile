@@ -1,20 +1,19 @@
-# Start with a standard Python computer
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# Hugging Face requires a special user setup for security
-RUN useradd -m -u 1000 user
-USER user
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
-WORKDIR $HOME/app
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1
 
-# Copy your requirements and install them
-COPY --chown=user requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev curl && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy your backend and ml-engineer folders into the container
-COPY --chown=user backend/ ./backend/
-COPY --chown=user ml-engineer/ ./ml-engineer/
+WORKDIR /app
 
-# Start the FastAPI server on port 7860
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "7860"]
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY backend/ /app/
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
