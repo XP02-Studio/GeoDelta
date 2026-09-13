@@ -15,8 +15,8 @@ psycopg2-binary>=2.9.6
 asyncpg
 qdrant-client>=1.4.0
 
-# HTTP client for ML engine calls
+# HTTP client for ML engine & STAC/geocoder calls
 requests
-
-# Lightweight encoder (numpy only — NO PyTorch needed)
 numpy
+Pillow
+rasterio

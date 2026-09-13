@@ -5,8 +5,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
 from app.api import search, analyze
-
-# Import the engine at the top of your file if it isn't already there
 from app.db.vector_store import vector_engine
 
 app = FastAPI(

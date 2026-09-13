@@ -36,30 +36,26 @@ export const AppProvider = ({ children }) => {
       
       const data = await response.json();
       
-      const bestMatch = data.results?.[0];
-      if (!bestMatch) {
-        throw new Error("Search returned no results");
-      }
-
-      const lat = bestMatch.lat ?? bestMatch.coordinates?.lat;
-      const lng = bestMatch.lng ?? bestMatch.coordinates?.lng;
+      const lat = data.coordinates?.lat ?? data.results?.[0]?.lat;
+      const lng = data.coordinates?.lng ?? data.results?.[0]?.lng;
       if (lat == null || lng == null || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
         throw new Error("Search returned no geographic coordinates");
       }
 
       setTargetCoordinates({ lat: Number(lat), lng: Number(lng) });
 
-      if (bestMatch.geometry) {
-        const coords = bestMatch.geometry.coordinates?.[0];
-        if (Array.isArray(coords) && coords.length >= 4) {
-          const lngs = coords.map(c => c[0]);
-          const lats = coords.map(c => c[1]);
-          const west = Math.min(...lngs);
-          const east = Math.max(...lngs);
-          const south = Math.min(...lats);
-          const north = Math.max(...lats);
-          setTargetBounds([[south, west], [north, east]]);
+      const bbox = data.bbox ?? data.results?.[0]?.geometry?.coordinates?.[0];
+      if (Array.isArray(bbox) && bbox.length >= 4) {
+        let west, south, east, north;
+        if (data.bbox) {
+          [west, south, east, north] = bbox.map(Number);
+        } else {
+          const lngs = bbox.map(c => c[0]);
+          const lats = bbox.map(c => c[1]);
+          west = Math.min(...lngs); east = Math.max(...lngs);
+          south = Math.min(...lats); north = Math.max(...lats);
         }
+        setTargetBounds([[south, west], [north, east]]);
       }
 
       setLiveSearch(data);
