@@ -1,8 +1,4 @@
-LIVE_CACHE[asset_id] = {
-    "t1_path": str(t1_path),
-    "t2_path": str(t2_path),
-    "bbox": location["bbox"],
-    "query": query,"""Live geocoding + STAC satellite imagery discovery.
+"""Live geocoding + STAC satellite imagery discovery.
 
 Downloads small overview thumbnails from STAC (JPEG, ~200KB each)
 and serves them as static files for the frontend ImageOverlay.
@@ -144,7 +140,11 @@ def create_live_search(query: str) -> dict[str, Any]:
     print(f"[live_search] downloading t2 from {t2_href[:80]}...")
     _download_as_png(t2_href, t2_path)
 
-
+    LIVE_CACHE[asset_id] = {
+        "t1_path": str(t1_path),
+        "t2_path": str(t2_path),
+        "bbox": location["bbox"],
+        "query": query,
     }
 
     return {
